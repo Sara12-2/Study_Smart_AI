@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚙️ Settings - Smart Study System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .settings-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .settings-section {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        
+        .settings-section h3 {
+            margin-bottom: 16px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .settings-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .settings-item:last-child {
+            border-bottom: none;
+        }
+        
+        .settings-item .label {
+            font-weight: 500;
+        }
+        
+        .settings-item .value {
+            color: #95A5A6;
+            font-size: 14px;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            display: inline-block;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #ccc;
+            transition: 0.3s;
+            border-radius: 26px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 4px;
+            bottom: 4px;
+            background: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+        
+        .toggle-switch input:checked + .toggle-slider {
+            background: #6C63FF;
+        }
+        
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(22px);
+        }
+        
+        .btn-danger {
+            background: #E74C3C;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .btn-danger:hover {
+            background: #C0392B;
+        }
+        
+        .btn-success {
+            background: #2ECC71;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .btn-success:hover {
+            background: #27AE60;
+        }
+        
+        .backup-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .backup-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .backup-item .name {
+            font-size: 13px;
+        }
+        
+        .backup-item .size {
+            font-size: 12px;
+            color: #95A5A6;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>🧠 StudySmart</h2>
+                <p class="subtitle">AI-Powered Learning</p>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <span class="icon">📊</span> Dashboard
+                </a>
+                <a href="/sessions" class="nav-item">
+                    <span class="icon">📚</span> Sessions
+                </a>
+                <a href="#" class="nav-item" onclick="alert('Coming soon!')">
+                    <span class="icon">📖</span> Subjects
+                </a>
+                <a href="#" class="nav-item" onclick="alert('Coming soon!')">
+                    <span class="icon">🤖</span> AI Insights
+                </a>
+                <a href="#" class="nav-item active">
+                    <span class="icon">⚙️</span> Settings
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="stats-mini">
+                    <span id="totalSessions">0</span> sessions
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="top-bar">
+                <div class="search-area">
+                    <h1>⚙️ Settings</h1>
+                </div>
+                <div class="user-area">
+                    <span class="date-display" id="currentDate"></span>
+                </div>
+            </header>
+            
+            <!-- Content -->
+            <div class="content-area settings-container">
+                <!-- General Settings -->
+                <div class="settings-section">
+                    <h3>🔧 General Settings</h3>
+                    <div class="settings-item">
+                        <span class="label">App Name</span>
+                        <span class="value">Smart Study System v1.0</span>
+                    </div>
+                    <div class="settings-item">
+                        <span class="label">Total Sessions</span>
+                        <span class="value" id="totalSessionsValue">0</span>
+                    </div>
+                    <div class="settings-item">
+                        <span class="label">Data Storage</span>
+                        <span class="value">JSON (data/sessions.json)</span>
+                    </div>
+                    <div class="settings-item">
+                        <span class="label">File Size</span>
+                        <span class="value" id="fileSizeValue">0 B</span>
+                    </div>
+                </div>
+                
+                <!-- Theme Settings -->
+                <div class="settings-section">
+                    <h3>🎨 Appearance</h3>
+                    <div class="settings-item">
+                        <span class="label">🌙 Dark Mode</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="darkMode">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Data Management -->
+                <div class="settings-section">
+                    <h3>💾 Data Management</h3>
+                    
+                    <div class="settings-item">
+                        <span class="label">📦 Create Backup</span>
+                        <button class="btn-success" onclick="createBackup()">Create Backup</button>
+                    </div>
+                    
+                    <div class="settings-item">
+                        <span class="label">🔄 Restore from Backup</span>
+                        <div>
+                            <select id="backupSelect" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;">
+                                <option value="">Select backup...</option>
+                            </select>
+                            <button class="btn-success" onclick="restoreBackup()" style="margin-top:8px;">Restore</button>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-item" style="flex-direction:column;align-items:stretch;gap:8px;">
+                        <span class="label">📋 Available Backups</span>
+                        <div class="backup-list" id="backupList">
+                            <span style="color:#95A5A6;font-size:13px;">No backups found</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Danger Zone -->
+                <div class="settings-section" style="border:2px solid #E74C3C;">
+                    <h3 style="color:#E74C3C;">⚠️ Danger Zone</h3>
+                    
+                    <div class="settings-item">
+                        <span class="label">🗑️ Clear All Sessions</span>
+                        <button class="btn-danger" onclick="clearAllSessions()">Clear All Data</button>
+                    </div>
+                    
+                    <div class="settings-item">
+                        <span class="label">📊 Reset Statistics</span>
+                        <button class="btn-danger" onclick="resetStats()">Reset Stats</button>
+                    </div>
+                </div>
+                
+                <!-- About -->
+                <div class="settings-section">
+                    <h3>ℹ️ About</h3>
+                    <div class="settings-item">
+                        <span class="label">Version</span>
+                        <span class="value">1.0.0</span>
+                    </div>
+                    <div class="settings-item">
+                        <span class="label">Built With</span>
+                        <span class="value">Python + Flask + AI</span>
+                    </div>
+                    <div class="settings-item">
+                        <span class="label">Status</span>
+                        <span class="value" style="color:#2ECC71;">● Running</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        // Update date
+        function updateDate() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', options);
+        }
+        updateDate();
+        
+        // Load stats
+        function loadStats() {
+            fetch('/api/stats')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('totalSessions').textContent = data.data.total_sessions || 0;
+                        document.getElementById('totalSessionsValue').textContent = data.data.total_sessions || 0;
+                        document.getElementById('fileSizeValue').textContent = data.data.file_size || '0 B';
+                    }
+                })
+                .catch(err => console.error('Error:', err));
+        }
+        loadStats();
+        
+        // Load backups
+        function loadBackups() {
+            fetch('/api/backup')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.data.length > 0) {
+                        const list = document.getElementById('backupList');
+                        const select = document.getElementById('backupSelect');
+                        
+                        list.innerHTML = '';
+                        select.innerHTML = '<option value="">Select backup...</option>';
+                        
+                        data.data.forEach(backup => {
+                            // Add to list
+                            const div = document.createElement('div');
+                            div.className = 'backup-item';
+                            div.innerHTML = `
+                                <span class="name">📄 ${backup.name}</span>
+                                <span class="size">${backup.date}</span>
+                            `;
+                            list.appendChild(div);
+                            
+                            // Add to select
+                            const option = document.createElement('option');
+                            option.value = backup.name;
+                            option.textContent = `${backup.name} (${backup.date})`;
+                            select.appendChild(option);
+                        });
+                    }
+                })
+                .catch(err => console.error('Error loading backups:', err));
+        }
+        loadBackups();
+        
+        // Create backup
+        function createBackup() {
+            if (!confirm('Create a backup of your data?')) return;
+            
+            fetch('/api/backup', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('✅ Backup created successfully!');
+                        loadBackups();
+                    } else {
+                        alert('❌ Failed to create backup: ' + data.error);
+                    }
+                })
+                .catch(err => {
+                    alert('❌ Error: ' + err);
+                });
+        }
+        
+        // Restore backup
+        function restoreBackup() {
+            const select = document.getElementById('backupSelect');
+            const backupName = select.value;
+            
+            if (!backupName) {
+                alert('Please select a backup file');
+                return;
+            }
+            
+            if (!confirm(`⚠️ Restore from backup "${backupName}"? This will replace ALL current data!`)) return;
+            
+            fetch(`/api/backup/${backupName}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('✅ Backup restored successfully!');
+                        loadStats();
+                        loadBackups();
+                    } else {
+                        alert('❌ Failed to restore backup: ' + data.error);
+                    }
+                })
+                .catch(err => {
+                    alert('❌ Error: ' + err);
+                });
+        }
+        
+        // Clear all sessions
+        function clearAllSessions() {
+            if (!confirm('⚠️ DELETE ALL SESSIONS? This cannot be undone!')) return;
+            if (!confirm('Are you really sure? All your study data will be lost!')) return;
+            
+            fetch('/api/clear?confirm=true', { method: 'DELETE' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('✅ All sessions cleared!');
+                        loadStats();
+                        loadBackups();
+                    } else {
+                        alert('❌ Failed to clear sessions: ' + data.error);
+                    }
+                })
+                .catch(err => {
+                    alert('❌ Error: ' + err);
+                });
+        }
+        
+        // Reset stats
+        function resetStats() {
+            if (!confirm('Reset statistics? Your sessions will remain but stats will recalculate.')) return;
+            
+            alert('🔄 Stats will recalculate on next view!');
+            loadStats();
+        }
+        
+        // Dark mode
+        document.getElementById('darkMode').addEventListener('change', function() {
+            if (this.checked) {
+                document.body.style.background = '#1a1a2e';
+                document.body.style.color = '#fff';
+                document.querySelectorAll('.settings-section').forEach(el => {
+                    el.style.background = '#2d2d44';
+                });
+                document.querySelectorAll('.settings-item').forEach(el => {
+                    el.style.borderColor = '#444466';
+                });
+                document.querySelector('.top-bar').style.background = '#2d2d44';
+                document.querySelector('.sidebar').style.background = '#1a1a2e';
+                document.querySelector('.sidebar').style.borderColor = '#444466';
+            } else {
+                document.body.style.background = '#F0F2F5';
+                document.body.style.color = '#2D3436';
+                document.querySelectorAll('.settings-section').forEach(el => {
+                    el.style.background = 'white';
+                });
+                document.querySelectorAll('.settings-item').forEach(el => {
+                    el.style.borderColor = '#f0f0f0';
+                });
+                document.querySelector('.top-bar').style.background = 'white';
+                document.querySelector('.sidebar').style.background = 'white';
+                document.querySelector('.sidebar').style.borderColor = '#E8ECF1';
+            }
+        });
+        
+        // Refresh every 30 seconds
+        setInterval(() => {
+            loadStats();
+        }, 30000);
+    </script>
+</body>
+</html>
