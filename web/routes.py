@@ -56,6 +56,11 @@ def register_routes(app):
         """Sessions management page"""
         return render_template('index.html')
     
+    @app.route('/settings')
+    def settings_page():
+        """Settings page"""
+        return render_template('settings.html')
+    
     # ==================== SESSION ROUTES ====================
     
     @app.route('/api/sessions', methods=['GET'])
@@ -488,10 +493,20 @@ def register_routes(app):
                 total_time = sum(s.get('duration', 0) for s in sessions)
                 avg_productivity = sum(s.get('productivity_score', 0) for s in sessions) / len(sessions)
                 total_distractions = sum(s.get('distractions', 0) for s in sessions)
+                
+                # Calculate consistency
+                if len(sessions) > 1:
+                    scores = [s.get('productivity_score', 0) for s in sessions]
+                    from statistics import stdev
+                    consistency = 100 - (stdev(scores) / 100 * 100)
+                    consistency = max(0, min(100, consistency))
+                else:
+                    consistency = 100
             else:
                 total_time = 0
                 avg_productivity = 0
                 total_distractions = 0
+                consistency = 0
             
             return jsonify({
                 'success': True,
@@ -502,7 +517,8 @@ def register_routes(app):
                     'total_distractions': total_distractions,
                     'subjects': stats['subjects'],
                     'backups': stats['backup_count'],
-                    'file_size': stats['file_size']
+                    'file_size': stats['file_size'],
+                    'consistency': round(consistency, 2)
                 }
             })
             
@@ -555,7 +571,8 @@ def register_routes(app):
                         backups.append({
                             'name': f,
                             'size': os.path.getsize(file_path),
-                            'created': os.path.getctime(file_path)
+                            'created': os.path.getctime(file_path),
+                            'date': datetime.fromtimestamp(os.path.getctime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
                         })
             
             return jsonify({
@@ -640,6 +657,61 @@ def register_routes(app):
                 'error': str(e)
             }), 500
     
+    # ==================== EXPORT ROUTES ====================
+    
+    @app.route('/api/analytics/export/<format_type>')
+    def export_analytics(format_type):
+        """
+        Export data in specified format
+        GET /api/analytics/export/{format}
+        """
+        try:
+            from src.core.analytics import AnalyticsEngine
+            analytics = AnalyticsEngine(storage, engine)
+            
+            filepath = analytics.export_data(format_type)
+            if filepath:
+                return jsonify({
+                    'success': True,
+                    'file': f'/{filepath}',
+                    'message': f'Data exported as {format_type.upper()}'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'No data to export'
+                }), 404
+        except Exception as e:
+            logger.error(f"Error exporting data: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    # ==================== SUBJECT COMPARISON ROUTE ====================
+    
+    @app.route('/api/compare/<subject1>/<subject2>')
+    def compare_subjects(subject1, subject2):
+        """
+        Compare two subjects
+        GET /api/compare/{subject1}/{subject2}
+        """
+        try:
+            from src.core.analytics import AnalyticsEngine
+            analytics = AnalyticsEngine(storage, engine)
+            
+            comparison = analytics.compare_subjects(subject1, subject2)
+            return jsonify({
+                'success': True,
+                'data': comparison
+            })
+        except Exception as e:
+            logger.error(f"Error comparing subjects: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
     # ==================== ERROR HANDLERS ====================
     
     @app.errorhandler(404)
@@ -672,7 +744,16 @@ def register_routes(app):
             'status': 'healthy',
             'timestamp': Helpers.get_current_time(),
             'sessions': storage.get_session_count(),
-            'version': '1.0.0'
+            'version': '1.0.0',
+            'routes_loaded': [
+                '/', '/dashboard', '/sessions', '/settings',
+                '/api/sessions', '/api/dashboard', '/api/weekly',
+                '/api/subjects', '/api/trends', '/api/optimal-times',
+                '/api/insights', '/api/predictions', '/api/recommendations',
+                '/api/stats', '/api/backup', '/api/clear',
+                '/api/analytics/export', '/api/compare'
+            ]
         })
     
-    logger.info("All routes registered successfully")
+    logger.info("✅ All routes registered successfully")
+    logger.info(f"📊 Total routes: {len(app.url_map._rules) if hasattr(app, 'url_map') else 'unknown'}")
