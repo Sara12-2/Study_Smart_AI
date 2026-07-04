@@ -62,3 +62,18 @@ desktop.ini
 *.pid
 *.seed
 *.pid.lock
+
+# Backup files
+data/backups/*.json
+data/backups/
+*.backup
+*.bak
+
+# Data files (keep structure but not content)
+data/*.json
+!data/.gitkeep
+
+# Export files
+exports/
+*.csv
+*.xlsx
