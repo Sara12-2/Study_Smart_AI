@@ -10,6 +10,14 @@ from datetime import datetime
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 
+# ==========================================
+# FIX: Unicode/Emoji Logging for Windows
+# ==========================================
+if sys.platform == 'win32':
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -28,7 +36,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('logs/web.log'),
+        logging.FileHandler('logs/web.log', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
@@ -65,10 +73,13 @@ def dashboard():
 def sessions_page():
     """Sessions management page"""
     return render_template('index.html')
+
+
 @app.route('/settings')
 def settings_page():
     """Settings page"""
     return render_template('settings.html')
+
 
 # ==================== SESSION ROUTES ====================
 
@@ -473,10 +484,20 @@ def get_stats():
             total_time = sum(s.get('duration', 0) for s in sessions)
             avg_productivity = sum(s.get('productivity_score', 0) for s in sessions) / len(sessions)
             total_distractions = sum(s.get('distractions', 0) for s in sessions)
+            
+            # Calculate consistency
+            if len(sessions) > 1:
+                scores = [s.get('productivity_score', 0) for s in sessions]
+                from statistics import stdev
+                consistency = 100 - (stdev(scores) / 100 * 100)
+                consistency = max(0, min(100, consistency))
+            else:
+                consistency = 100
         else:
             total_time = 0
             avg_productivity = 0
             total_distractions = 0
+            consistency = 0
         
         return jsonify({
             'success': True,
@@ -487,7 +508,8 @@ def get_stats():
                 'total_distractions': total_distractions,
                 'subjects': stats['subjects'],
                 'backups': stats['backup_count'],
-                'file_size': stats['file_size']
+                'file_size': stats['file_size'],
+                'consistency': round(consistency, 2)
             }
         })
         
@@ -618,6 +640,35 @@ def clear_sessions():
         }), 500
 
 
+# ==================== ANALYTICS EXPORT ROUTE ====================
+
+@app.route('/api/analytics/export/<format_type>')
+def export_analytics(format_type):
+    """Export data in specified format"""
+    try:
+        from src.core.analytics import AnalyticsEngine
+        analytics = AnalyticsEngine(storage, engine)
+        
+        filepath = analytics.export_data(format_type)
+        if filepath:
+            return jsonify({
+                'success': True,
+                'file': f'/{filepath}',
+                'message': f'Data exported as {format_type.upper()}'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'No data to export'
+            }), 404
+    except Exception as e:
+        logger.error(f"Error exporting data: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # ==================== HEALTH CHECK ====================
 
 @app.route('/api/health')
@@ -653,12 +704,27 @@ def internal_error(error):
     }), 500
 
 
+# ==================== MAIN ====================
+
 if __name__ == '__main__':
-    # Create logs directory
+    # Create necessary directories
     os.makedirs('logs', exist_ok=True)
+    os.makedirs('exports', exist_ok=True)
     
-    logger.info("🚀 Starting Smart Study System Web Application")
-    logger.info(f"💾 Storage: {storage.file_path}")
-    logger.info(f"🌐 Server: http://localhost:5000")
+    # Use simple logging messages without emojis (fix Windows encoding)
+    logger.info("Starting Smart Study System Web Application")
+    logger.info(f"Storage: {storage.file_path}")
+    logger.info(f"Server: http://localhost:5000")
+    logger.info("API Endpoints available:")
+    logger.info("  GET  /api/sessions - Get all sessions")
+    logger.info("  POST /api/sessions - Add a session")
+    logger.info("  GET  /api/dashboard - Today's dashboard")
+    logger.info("  GET  /api/weekly - Weekly report")
+    logger.info("  GET  /api/subjects - Subject analysis")
+    logger.info("  GET  /api/insights - AI insights")
+    logger.info("  GET  /api/predictions - AI predictions")
+    logger.info("  GET  /api/recommendations - AI recommendations")
+    logger.info("  GET  /api/stats - System statistics")
+    logger.info("  GET  /api/health - Health check")
     
     app.run(debug=True, host='0.0.0.0', port=5000)
