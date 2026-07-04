@@ -1,1342 +1,155 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Smart Study System</title>
+// ==========================================
+// DARK MODE
+// ==========================================
+function initDarkMode() {
+    const isDark = localStorage.getItem('darkMode') === 'true';
+    if (isDark) {
+        document.body.classList.add('dark-mode');
+    }
+}
+initDarkMode();
+
+// ==========================================
+// TOAST NOTIFICATIONS
+// ==========================================
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    if (!container) {
+        const div = document.createElement('div');
+        div.id = 'toastContainer';
+        document.body.appendChild(div);
+    }
     
-    <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    const colors = {
+        success: '#2ECC71',
+        error: '#E74C3C',
+        warning: '#F39C12',
+        info: '#3498DB'
+    };
     
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    const icons = {
+        success: 'fa-check-circle',
+        error: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+    };
     
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        background: white;
+        padding: 16px 24px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+        margin-bottom: 12px;
+        border-left: 4px solid ${colors[type]};
+        animation: slideIn 0.3s ease;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        max-width: 400px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    `;
     
-    <style>
-        /* ==========================================
-           PREMIUM DASHBOARD STYLES
-           ========================================== */
-        
-        :root {
-            --primary: #6C63FF;
-            --primary-dark: #5A52D5;
-            --primary-light: #8B83FF;
-            --primary-gradient: linear-gradient(135deg, #6C63FF 0%, #8B83FF 100%);
-            --secondary: #FF6584;
-            --success: #2ECC71;
-            --warning: #F39C12;
-            --danger: #E74C3C;
-            --dark: #1a1a2e;
-            --dark-card: #16213e;
-            --dark-border: #2d2d44;
-            --glass-bg: rgba(255, 255, 255, 0.08);
-            --glass-border: rgba(255, 255, 255, 0.12);
-            --shadow-premium: 0 8px 32px rgba(0, 0, 0, 0.12);
-            --shadow-hover: 0 12px 48px rgba(108, 99, 255, 0.25);
-            --radius-premium: 20px;
-            --transition-premium: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #f0f2f5;
-            min-height: 100vh;
-        }
-        
-        /* ==========================================
-           SIDEBAR - Premium
-           ========================================== */
-        .sidebar {
-            width: 280px;
-            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-            border-right: 1px solid rgba(255,255,255,0.06);
-            padding: 28px 20px;
-            display: flex;
-            flex-direction: column;
+    if (document.body.classList.contains('dark-mode')) {
+        toast.style.background = '#2d2d44';
+        toast.style.color = '#e0e0e0';
+    }
+    
+    toast.innerHTML = `
+        <i class="fas ${icons[type]}" style="color: ${colors[type]}; font-size: 18px;"></i>
+        ${message}
+    `;
+    
+    document.getElementById('toastContainer').appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// ==========================================
+// EXPORT DATA
+// ==========================================
+function exportData(format = 'csv') {
+    fetch(`/api/analytics/export/${format}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = data.file;
+                showToast('Data exported successfully!', 'success');
+            } else {
+                showToast('No data to export', 'warning');
+            }
+        })
+        .catch(() => showToast('Export failed', 'error'));
+}
+
+// ==========================================
+// ACHIEVEMENTS
+// ==========================================
+function checkAchievements(sessions) {
+    if (sessions >= 10) {
+        showAchievement('🎯 10 Sessions Completed!');
+    }
+    if (sessions >= 50) {
+        showAchievement('🔥 50 Sessions - You\'re on Fire!');
+    }
+    if (sessions >= 100) {
+        showAchievement('🏆 100 Sessions - Master Level!');
+    }
+}
+
+function showAchievement(message) {
+    // Confetti effect
+    const colors = ['#6C63FF', '#2ECC71', '#F39C12', '#FF6584', '#3498DB'];
+    for (let i = 0; i < 50; i++) {
+        const confetti = document.createElement('div');
+        const x = Math.random() * 100;
+        const size = 5 + Math.random() * 10;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.cssText = `
             position: fixed;
-            height: 100vh;
-            overflow-y: auto;
-            z-index: 100;
-            transition: var(--transition-premium);
-        }
-        
-        .sidebar::-webkit-scrollbar {
-            width: 4px;
-        }
-        
-        .sidebar::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        
-        .sidebar::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 10px;
-        }
-        
-        .sidebar-header {
-            padding-bottom: 28px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-            margin-bottom: 28px;
-        }
-        
-        .sidebar-header .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        
-        .sidebar-header .logo-icon {
-            width: 44px;
-            height: 44px;
-            background: var(--primary-gradient);
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            color: white;
-            box-shadow: 0 4px 20px rgba(108, 99, 255, 0.3);
-        }
-        
-        .sidebar-header h2 {
-            font-size: 22px;
-            font-weight: 700;
-            color: white;
-            letter-spacing: -0.5px;
-        }
-        
-        .sidebar-header .subtitle {
-            font-size: 12px;
-            color: rgba(255,255,255,0.5);
-            font-weight: 400;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            margin-top: 2px;
-        }
-        
-        .sidebar-nav {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        
-        .nav-item {
-            display: flex;
-            align-items: center;
-            padding: 12px 16px;
-            border-radius: 12px;
-            color: rgba(255,255,255,0.6);
-            text-decoration: none;
-            transition: var(--transition-premium);
-            cursor: pointer;
-            gap: 14px;
-            font-weight: 500;
-            font-size: 14px;
-            position: relative;
-        }
-        
-        .nav-item i {
-            font-size: 18px;
-            width: 24px;
-            text-align: center;
-        }
-        
-        .nav-item:hover {
-            background: rgba(255,255,255,0.06);
-            color: white;
-            transform: translateX(4px);
-        }
-        
-        .nav-item.active {
-            background: var(--primary-gradient);
-            color: white;
-            box-shadow: 0 4px 20px rgba(108, 99, 255, 0.3);
-        }
-        
-        .nav-item.active::before {
-            content: '';
-            position: absolute;
-            left: -20px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 4px;
-            height: 24px;
-            background: white;
-            border-radius: 0 4px 4px 0;
-        }
-        
-        .nav-item .badge {
-            margin-left: auto;
-            background: rgba(255,255,255,0.1);
-            padding: 2px 10px;
-            border-radius: 20px;
-            font-size: 11px;
-            color: rgba(255,255,255,0.7);
-        }
-        
-        .sidebar-footer {
-            padding-top: 20px;
-            border-top: 1px solid rgba(255,255,255,0.06);
-            color: rgba(255,255,255,0.4);
-            font-size: 13px;
-        }
-        
-        .sidebar-footer .stats-mini {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .sidebar-footer .stats-mini span {
-            color: white;
-            font-weight: 600;
-        }
-        
-        /* ==========================================
-           MAIN CONTENT
-           ========================================== */
-        .main-content {
-            margin-left: 280px;
-            flex: 1;
-            padding: 28px 36px;
-            min-height: 100vh;
-        }
-        
-        /* ==========================================
-           TOP BAR - Premium
-           ========================================== */
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 32px;
-            padding: 16px 24px;
-            background: white;
-            border-radius: var(--radius-premium);
-            box-shadow: var(--shadow-premium);
-        }
-        
-        .top-bar h1 {
-            font-size: 24px;
-            font-weight: 700;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .user-area {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-        
-        .btn {
-            padding: 10px 24px;
-            border: none;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--transition-premium);
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            font-family: 'Inter', sans-serif;
-        }
-        
-        .btn-primary {
-            background: var(--primary-gradient);
-            color: white;
-            box-shadow: 0 4px 15px rgba(108, 99, 255, 0.25);
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(108, 99, 255, 0.35);
-        }
-        
-        .btn-primary i {
-            font-size: 14px;
-        }
-        
-        .date-display {
-            color: var(--gray);
-            font-size: 14px;
-            font-weight: 500;
-        }
-        
-        /* ==========================================
-           STATS GRID - Premium
-           ========================================== */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            margin-bottom: 32px;
-        }
-        
-        .stat-card {
-            background: white;
-            padding: 20px 24px;
-            border-radius: var(--radius-premium);
-            box-shadow: var(--shadow-premium);
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            transition: var(--transition-premium);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: var(--primary-gradient);
-            opacity: 0;
-            transition: var(--transition-premium);
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-hover);
-        }
-        
-        .stat-card:hover::before {
-            opacity: 1;
-        }
-        
-        .stat-card .stat-icon {
-            width: 52px;
-            height: 52px;
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            color: white;
-            flex-shrink: 0;
-        }
-        
-        .stat-card .stat-icon.purple { background: var(--primary-gradient); }
-        .stat-card .stat-icon.green { background: linear-gradient(135deg, #2ECC71, #27AE60); }
-        .stat-card .stat-icon.orange { background: linear-gradient(135deg, #F39C12, #E67E22); }
-        .stat-card .stat-icon.pink { background: linear-gradient(135deg, #FF6584, #FF6B81); }
-        
-        .stat-card .stat-info {
-            flex: 1;
-        }
-        
-        .stat-card .stat-label {
-            display: block;
-            font-size: 13px;
-            color: var(--gray);
-            font-weight: 500;
-        }
-        
-        .stat-card .stat-value {
-            display: block;
-            font-size: 26px;
-            font-weight: 700;
-            color: var(--dark);
-            margin-top: 2px;
-        }
-        
-        /* ==========================================
-           DASHBOARD GRID
-           ========================================== */
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 24px;
-        }
-        
-        /* ==========================================
-           CARDS - Premium
-           ========================================== */
-        .card {
-            background: white;
-            border-radius: var(--radius-premium);
-            box-shadow: var(--shadow-premium);
-            margin-bottom: 24px;
-            overflow: hidden;
-            transition: var(--transition-premium);
-        }
-        
-        .card:hover {
-            box-shadow: var(--shadow-hover);
-        }
-        
-        .card-header {
-            padding: 18px 24px;
-            border-bottom: 1px solid #f0f0f0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .card-header h3 {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--dark);
-        }
-        
-        .card-header h3 i {
-            margin-right: 10px;
-            color: var(--primary);
-        }
-        
-        .card-body {
-            padding: 24px;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 40px 0;
-            color: var(--gray);
-        }
-        
-        .loading i {
-            font-size: 32px;
-            margin-bottom: 12px;
-            display: block;
-            color: var(--primary);
-        }
-        
-        /* ==========================================
-           SUMMARY ROWS
-           ========================================== */
-        .summary-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .summary-row:last-child {
-            border-bottom: none;
-        }
-        
-        .summary-row span {
-            color: #555;
-            font-weight: 500;
-        }
-        
-        .summary-row strong {
-            color: var(--dark);
-            font-weight: 600;
-        }
-        
-        /* ==========================================
-           PRODUCTIVITY CHART
-           ========================================== */
-        .productivity-chart {
-            height: 200px;
-            display: flex;
-            align-items: flex-end;
-            gap: 12px;
-            padding: 16px 0;
-        }
-        
-        .chart-bar {
-            flex: 1;
-            border-radius: 6px 6px 0 0;
-            min-height: 10px;
-            transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            cursor: pointer;
-        }
-        
-        .chart-bar:hover {
-            opacity: 0.85;
-            transform: scaleY(1.02);
-            transform-origin: bottom;
-        }
-        
-        .chart-bar .tooltip {
-            position: absolute;
-            top: -30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--dark);
-            color: white;
-            padding: 2px 10px;
-            border-radius: 6px;
-            font-size: 11px;
-            opacity: 0;
-            pointer-events: none;
-            transition: var(--transition-premium);
-            white-space: nowrap;
-        }
-        
-        .chart-bar:hover .tooltip {
-            opacity: 1;
-            top: -36px;
-        }
-        
-        .chart-label {
-            text-align: center;
-            font-size: 11px;
-            color: var(--gray);
-            margin-top: 6px;
-            font-weight: 500;
-        }
-        
-        /* ==========================================
-           INSIGHT BOX - Premium
-           ========================================== */
-        .insight-box {
-            background: var(--primary-gradient);
-            color: white;
-            padding: 20px 24px;
-            border-radius: 14px;
-            margin-bottom: 16px;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .insight-box::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -20%;
-            width: 200px;
-            height: 200px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 50%;
-        }
-        
-        .insight-box h4 {
-            margin-bottom: 6px;
-            font-size: 13px;
-            opacity: 0.9;
-            font-weight: 500;
-        }
-        
-        .insight-box h4 i {
-            margin-right: 8px;
-        }
-        
-        .insight-box p {
-            font-size: 18px;
-            font-weight: 700;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .insight-box .sub-text {
-            font-size: 13px;
-            opacity: 0.8;
-            font-weight: 400;
-            margin-top: 4px;
-        }
-        
-        /* ==========================================
-           SUBJECT BREAKDOWN
-           ========================================== */
-        .subject-item {
-            margin-bottom: 14px;
-        }
-        
-        .subject-item:last-child {
-            margin-bottom: 0;
-        }
-        
-        .subject-item .subject-header {
-            display: flex;
-            justify-content: space-between;
-            font-size: 14px;
-            margin-bottom: 4px;
-        }
-        
-        .subject-item .subject-header .name {
-            font-weight: 500;
-        }
-        
-        .subject-item .subject-header .score {
-            font-weight: 600;
-        }
-        
-        .subject-item .progress-bar {
-            height: 6px;
-            background: #f0f0f0;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        
-        .subject-item .progress-bar .fill {
-            height: 100%;
-            border-radius: 4px;
-            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        /* ==========================================
-           MODAL - Premium
-           ========================================== */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(8px);
-            animation: fadeIn 0.3s ease;
-        }
-        
-        .modal-content {
-            background: white;
-            margin: 5% auto;
-            max-width: 520px;
-            border-radius: var(--radius-premium);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            animation: slideDown 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        @keyframes slideDown {
-            from { transform: translateY(-60px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        
-        .modal-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid #f0f0f0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .modal-header h2 {
-            font-size: 20px;
-            font-weight: 700;
-        }
-        
-        .modal-header h2 i {
-            color: var(--primary);
-            margin-right: 10px;
-        }
-        
-        .modal-header .close {
-            font-size: 28px;
-            cursor: pointer;
-            color: var(--gray);
-            transition: var(--transition-premium);
-            background: none;
-            border: none;
-            line-height: 1;
-        }
-        
-        .modal-header .close:hover {
-            color: var(--danger);
-            transform: rotate(90deg);
-        }
-        
-        .modal-content form {
-            padding: 24px;
-        }
-        
-        .form-group {
-            margin-bottom: 16px;
-        }
-        
-        .form-group label {
-            display: block;
-            font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 6px;
-            color: var(--dark);
-        }
-        
-        .form-group label .required {
-            color: var(--danger);
-        }
-        
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 10px 14px;
-            border: 2px solid #e8ecf1;
-            border-radius: 10px;
-            font-size: 14px;
-            font-family: inherit;
-            transition: var(--transition-premium);
-            background: #fafafa;
-        }
-        
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(108, 99, 255, 0.1);
-            background: white;
-        }
-        
-        .form-group textarea {
-            min-height: 80px;
-            resize: vertical;
-        }
-        
-        .btn-block {
-            width: 100%;
-            justify-content: center;
-            padding: 14px;
-            font-size: 16px;
-            margin-top: 4px;
-        }
-        
-        /* ==========================================
-           RESPONSIVE
-           ========================================== */
-        @media (max-width: 1200px) {
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-        
-        @media (max-width: 992px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .sidebar {
-                width: 80px;
-                padding: 16px 12px;
-            }
-            
-            .sidebar-header h2,
-            .sidebar-header .subtitle,
-            .nav-item span,
-            .nav-item .badge,
-            .sidebar-footer .stats-mini {
-                display: none;
-            }
-            
-            .sidebar-header .logo-icon {
-                margin: 0 auto;
-            }
-            
-            .nav-item {
-                justify-content: center;
-                padding: 12px;
-            }
-            
-            .nav-item i {
-                font-size: 22px;
-                margin: 0;
-            }
-            
-            .main-content {
-                margin-left: 80px;
-                padding: 20px;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .stats-grid {
-                grid-template-columns: 1fr 1fr;
-            }
-            
-            .sidebar {
-                width: 60px;
-                padding: 12px 8px;
-            }
-            
-            .main-content {
-                margin-left: 60px;
-                padding: 16px;
-            }
-            
-            .top-bar {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 12px;
-                padding: 16px;
-            }
-            
-            .user-area {
-                width: 100%;
-                flex-wrap: wrap;
-            }
-            
-            .stat-card .stat-value {
-                font-size: 20px;
-            }
-            
-            .modal-content {
-                margin: 10% 16px;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .top-bar h1 {
-                font-size: 18px;
-            }
-            
-            .stat-card {
-                padding: 16px;
-            }
-            
-            .card-header {
-                padding: 14px 16px;
-            }
-            
-            .card-body {
-                padding: 16px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="app-container">
-        <!-- ==========================================
-        SIDEBAR - Premium
-        ========================================== -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo">
-                    <div class="logo-icon">
-                        <i class="fas fa-brain"></i>
-                    </div>
-                    <div>
-                        <h2>StudySmart</h2>
-                        <div class="subtitle">AI-Powered Learning</div>
-                    </div>
-                </div>
-            </div>
-            
-            <nav class="sidebar-nav">
-                <a href="/" class="nav-item active">
-                    <i class="fas fa-chart-pie"></i>
-                    <span>Dashboard</span>
-                </a>
-                <a href="/sessions" class="nav-item">
-                    <i class="fas fa-book-open"></i>
-                    <span>Sessions</span>
-                    <span class="badge" id="sessionBadge">0</span>
-                </a>
-                <a href="#" class="nav-item" onclick="alert('Coming soon!')">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Analytics</span>
-                </a>
-                <a href="#" class="nav-item" onclick="alert('Coming soon!')">
-                    <i class="fas fa-robot"></i>
-                    <span>AI Insights</span>
-                </a>
-                <a href="/settings" class="nav-item">
-                    <i class="fas fa-cog"></i>
-                    <span>Settings</span>
-                </a>
-            </nav>
-            
-            <div class="sidebar-footer">
-                <div class="stats-mini">
-                    <i class="fas fa-database"></i>
-                    <span id="totalSessions">0</span> sessions
-                </div>
-            </div>
-        </aside>
-        
-        <!-- ==========================================
-        MAIN CONTENT
-        ========================================== -->
-        <main class="main-content">
-            <!-- Top Bar -->
-            <header class="top-bar">
-                <div class="search-area">
-                    <h1><i class="fas fa-chart-pie" style="color: var(--primary); margin-right: 12px;"></i>Dashboard</h1>
-                </div>
-                <div class="user-area">
-                    <button class="btn btn-primary" onclick="showAddModal()">
-                        <i class="fas fa-plus-circle"></i> Add Session
-                    </button>
-                    <span class="date-display" id="currentDate">
-                        <i class="far fa-calendar-alt"></i> 
-                    </span>
-                </div>
-            </header>
-            
-            <!-- Content -->
-            <div class="content-area">
-                <!-- Stats Grid -->
-                <div class="stats-grid" id="statsGrid">
-                    <div class="stat-card">
-                        <div class="stat-icon purple">
-                            <i class="fas fa-book"></i>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-label">Total Sessions</span>
-                            <span class="stat-value" id="statSessions">0</span>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-icon green">
-                            <i class="fas fa-clock"></i>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-label">Total Time</span>
-                            <span class="stat-value" id="statTime">0 min</span>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-icon orange">
-                            <i class="fas fa-rocket"></i>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-label">Avg Productivity</span>
-                            <span class="stat-value" id="statProductivity">0%</span>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-icon pink">
-                            <i class="fas fa-trophy"></i>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-label">Best Subject</span>
-                            <span class="stat-value" id="statBestSubject">-</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Dashboard Grid -->
-                <div class="dashboard-grid">
-                    <!-- Left Column -->
-                    <div>
-                        <!-- Today's Summary -->
-                        <div class="card">
-                            <div class="card-header">
-                                <h3><i class="fas fa-calendar-day"></i>Today's Summary</h3>
-                                <span id="todayDate" style="font-size: 13px; color: var(--gray);"></span>
-                            </div>
-                            <div class="card-body" id="todaySummary">
-                                <div class="loading">
-                                    <i class="fas fa-spinner fa-spin"></i>
-                                    Loading...
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Weekly Chart -->
-                        <div class="card">
-                            <div class="card-header">
-                                <h3><i class="fas fa-chart-bar"></i>Weekly Productivity</h3>
-                            </div>
-                            <div class="card-body" id="weeklyChart">
-                                <div class="loading">
-                                    <i class="fas fa-spinner fa-spin"></i>
-                                    Loading chart...
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Right Column -->
-                    <div>
-                        <!-- AI Insight -->
-                        <div class="card">
-                            <div class="card-header">
-                                <h3><i class="fas fa-robot" style="color: var(--primary);"></i>AI Insight</h3>
-                            </div>
-                            <div class="card-body" id="aiInsight">
-                                <div class="loading">
-                                    <i class="fas fa-spinner fa-spin"></i>
-                                    Analyzing...
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Subject Breakdown -->
-                        <div class="card">
-                            <div class="card-header">
-                                <h3><i class="fas fa-layer-group"></i>Subject Breakdown</h3>
-                            </div>
-                            <div class="card-body" id="subjectBreakdown">
-                                <div class="loading">
-                                    <i class="fas fa-spinner fa-spin"></i>
-                                    Loading...
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
+            top: -10px;
+            left: ${x}vw;
+            width: ${size}px;
+            height: ${size * 0.6}px;
+            background: ${color};
+            border-radius: 2px;
+            animation: confettiFall ${2 + Math.random() * 2}s ease-in forwards;
+            z-index: 9999;
+            transform: rotate(${Math.random() * 360}deg);
+        `;
+        document.body.appendChild(confetti);
+        setTimeout(() => confetti.remove(), 4000);
+    }
     
-    <!-- ==========================================
-    ADD SESSION MODAL - Premium
-    ========================================== -->
-    <div id="addModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2><i class="fas fa-plus-circle"></i>Add Study Session</h2>
-                <button class="close" onclick="closeModal()">&times;</button>
-            </div>
-            <form id="sessionForm">
-                <div class="form-group">
-                    <label>Subject <span class="required">*</span></label>
-                    <input type="text" id="subject" placeholder="e.g., Python Programming" required>
-                </div>
+    // Show achievement toast
+    setTimeout(() => {
+        showToast(`🏆 ${message}`, 'success');
+    }, 500);
+}
+
+// ==========================================
+// UPDATE STATS WITH ACHIEVEMENTS
+// ==========================================
+// Modify loadStats function
+function loadStats() {
+    fetch('/api/stats')
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const sessions = data.data.total_sessions || 0;
+                document.getElementById('statSessions').textContent = sessions;
+                document.getElementById('statTime').textContent = `${data.data.total_time || 0} min`;
+                document.getElementById('statProductivity').textContent = `${data.data.avg_productivity || 0}%`;
+                document.getElementById('totalSessions').textContent = sessions;
+                document.getElementById('sessionBadge').textContent = sessions;
                 
-                <div class="form-group">
-                    <label>Duration (minutes) <span class="required">*</span></label>
-                    <input type="number" id="duration" placeholder="30" min="5" max="240" required>
-                </div>
-                
-                <div class="form-group">
-                    <label>Distractions (0-20)</label>
-                    <input type="number" id="distractions" placeholder="0" min="0" max="20" value="0">
-                </div>
-                
-                <div class="form-group">
-                    <label>Mood (1-5)</label>
-                    <select id="mood">
-                        <option value="">Select mood</option>
-                        <option value="1">😞 Very Bad</option>
-                        <option value="2">😟 Bad</option>
-                        <option value="3">😐 Neutral</option>
-                        <option value="4">😊 Good</option>
-                        <option value="5">😄 Excellent</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label>Notes</label>
-                    <textarea id="notes" placeholder="What did you learn?"></textarea>
-                </div>
-                
-                <button type="submit" class="btn btn-primary btn-block">
-                    <i class="fas fa-save"></i> Save Session
-                </button>
-            </form>
-        </div>
-    </div>
-    
-    <!-- ==========================================
-    JAVASCRIPT
-    ========================================== -->
-    <script>
-        // ==========================================
-        // DASHBOARD JAVASCRIPT - Premium
-        // ==========================================
-        
-        // Update date
-        function updateDate() {
-            const now = new Date();
-            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            document.getElementById('currentDate').innerHTML = `<i class="far fa-calendar-alt"></i> ${now.toLocaleDateString('en-US', options)}`;
-            document.getElementById('todayDate').textContent = now.toLocaleDateString('en-US', options);
-        }
-        updateDate();
-        
-        // Load stats
-        function loadStats() {
-            fetch('/api/stats')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        document.getElementById('statSessions').textContent = data.data.total_sessions || 0;
-                        document.getElementById('statTime').textContent = `${data.data.total_time || 0} min`;
-                        document.getElementById('statProductivity').textContent = `${data.data.avg_productivity || 0}%`;
-                        document.getElementById('totalSessions').textContent = data.data.total_sessions || 0;
-                        document.getElementById('sessionBadge').textContent = data.data.total_sessions || 0;
-                    }
-                })
-                .catch(err => console.error('Error:', err));
-        }
-        loadStats();
-        
-        // Load dashboard
-        function loadDashboard() {
-            fetch('/api/dashboard')
-                .then(res => res.json())
-                .then(data => {
-                    const container = document.getElementById('todaySummary');
-                    if (data.success && data.data) {
-                        const d = data.data;
-                        container.innerHTML = `
-                            <div class="summary-row">
-                                <span><i class="fas fa-book" style="color: var(--primary); margin-right: 8px;"></i>Sessions</span>
-                                <strong>${d.total_sessions}</strong>
-                            </div>
-                            <div class="summary-row">
-                                <span><i class="fas fa-clock" style="color: #2ECC71; margin-right: 8px;"></i>Total Time</span>
-                                <strong>${d.total_time} min</strong>
-                            </div>
-                            <div class="summary-row">
-                                <span><i class="fas fa-rocket" style="color: #F39C12; margin-right: 8px;"></i>Avg Productivity</span>
-                                <strong style="color: ${d.avg_productivity >= 70 ? '#2ECC71' : d.avg_productivity >= 50 ? '#F39C12' : '#E74C3C'}">
-                                    ${d.avg_productivity}%
-                                </strong>
-                            </div>
-                            <div class="summary-row">
-                                <span><i class="fas fa-exclamation-triangle" style="color: #E74C3C; margin-right: 8px;"></i>Distractions</span>
-                                <strong>${d.total_distractions}</strong>
-                            </div>
-                            ${d.best_subject && d.best_subject.name ? `
-                                <div class="summary-row">
-                                    <span><i class="fas fa-trophy" style="color: #F39C12; margin-right: 8px;"></i>Best Subject</span>
-                                    <strong>${d.best_subject.name} (${d.best_subject.score}%)</strong>
-                                </div>
-                            ` : ''}
-                        `;
-                    } else {
-                        container.innerHTML = `
-                            <div style="text-align:center;color:#95A5A6;padding:20px 0;">
-                                <i class="fas fa-inbox" style="font-size:32px;display:block;margin-bottom:12px;"></i>
-                                No sessions today. Start tracking!
-                            </div>
-                        `;
-                    }
-                })
-                .catch(err => {
-                    document.getElementById('todaySummary').innerHTML = '<p style="color:#E74C3C;"><i class="fas fa-exclamation-circle"></i> Error loading dashboard</p>';
-                });
-        }
-        loadDashboard();
-        
-        // Load weekly chart
-        function loadWeeklyChart() {
-            fetch('/api/weekly')
-                .then(res => res.json())
-                .then(data => {
-                    const container = document.getElementById('weeklyChart');
-                    if (data.success && data.data && data.data.weekly_reports) {
-                        const reports = data.data.weekly_reports.slice(-5);
-                        let bars = '';
-                        const maxScore = Math.max(...reports.map(r => r.avg_productivity), 1);
-                        
-                        reports.forEach(r => {
-                            const height = (r.avg_productivity / maxScore) * 150;
-                            const color = r.avg_productivity >= 70 ? '#2ECC71' : r.avg_productivity >= 50 ? '#F39C12' : '#E74C3C';
-                            bars += `
-                                <div style="flex:1; text-align:center;">
-                                    <div class="chart-bar" style="height: ${height}px; background: ${color};">
-                                        <span class="tooltip">${r.avg_productivity}%</span>
-                                    </div>
-                                    <div class="chart-label">${r.week}</div>
-                                    <div style="font-size:11px; font-weight:600; color: var(--dark);">${r.avg_productivity}%</div>
-                                </div>
-                            `;
-                        });
-                        
-                        container.innerHTML = `
-                            <div class="productivity-chart">${bars}</div>
-                            <div style="text-align:center;font-size:13px;color:#95A5A6;margin-top:8px;">
-                                <i class="fas fa-chart-line"></i> Productivity trend over last ${reports.length} weeks
-                            </div>
-                        `;
-                    } else {
-                        container.innerHTML = `
-                            <div style="text-align:center;color:#95A5A6;padding:20px 0;">
-                                <i class="fas fa-chart-bar" style="font-size:32px;display:block;margin-bottom:12px;"></i>
-                                No weekly data yet
-                            </div>
-                        `;
-                    }
-                })
-                .catch(err => {
-                    document.getElementById('weeklyChart').innerHTML = '<p style="color:#E74C3C;"><i class="fas fa-exclamation-circle"></i> Error loading chart</p>';
-                });
-        }
-        loadWeeklyChart();
-        
-        // Load AI insight
-        function loadAIInsight() {
-            fetch('/api/insights')
-                .then(res => res.json())
-                .then(data => {
-                    const container = document.getElementById('aiInsight');
-                    if (data.success && data.data && data.data.optimal_times) {
-                        const ot = data.data.optimal_times;
-                        if (!ot.error) {
-                            container.innerHTML = `
-                                <div class="insight-box">
-                                    <h4><i class="fas fa-clock"></i> Best Time to Study</h4>
-                                    <p>${String(ot.best_hour).padStart(2, '0')}:00</p>
-                                    <div class="sub-text">${ot.best_hour_productivity}% productivity</div>
-                                </div>
-                                <div style="font-size:14px;color:#2D3436;padding:4px 0;">
-                                    <p><i class="fas fa-lightbulb" style="color: #F39C12; margin-right: 8px;"></i> ${ot.recommendation || 'Keep tracking to get personalized recommendations!'}</p>
-                                </div>
-                            `;
-                        } else {
-                            container.innerHTML = `
-                                <div style="text-align:center;color:#95A5A6;padding:20px 0;">
-                                    <i class="fas fa-robot" style="font-size:32px;display:block;margin-bottom:12px;"></i>
-                                    Add more sessions for AI insights!
-                                </div>
-                            `;
-                        }
-                    } else {
-                        container.innerHTML = `
-                            <div style="text-align:center;color:#95A5A6;padding:20px 0;">
-                                <i class="fas fa-robot" style="font-size:32px;display:block;margin-bottom:12px;"></i>
-                                Add more sessions for AI insights!
-                            </div>
-                        `;
-                    }
-                })
-                .catch(err => {
-                    document.getElementById('aiInsight').innerHTML = '<p style="color:#E74C3C;"><i class="fas fa-exclamation-circle"></i> Error loading insight</p>';
-                });
-        }
-        loadAIInsight();
-        
-        // Load subject breakdown
-        function loadSubjectBreakdown() {
-            fetch('/api/subjects')
-                .then(res => res.json())
-                .then(data => {
-                    const container = document.getElementById('subjectBreakdown');
-                    if (data.success && data.data && data.data.subjects) {
-                        let html = '';
-                        data.data.subjects.slice(0, 5).forEach(([subject, metrics]) => {
-                            const pct = metrics.avg_productivity;
-                            const color = pct >= 70 ? '#2ECC71' : pct >= 50 ? '#F39C12' : '#E74C3C';
-                            html += `
-                                <div class="subject-item">
-                                    <div class="subject-header">
-                                        <span class="name">${subject}</span>
-                                        <span class="score" style="color: ${color};">${pct}%</span>
-                                    </div>
-                                    <div class="progress-bar">
-                                        <div class="fill" style="width: 0%; background: ${color};"></div>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        container.innerHTML = html;
-                        
-                        // Animate progress bars
-                        setTimeout(() => {
-                            document.querySelectorAll('.subject-item .fill').forEach((bar, index) => {
-                                const pct = data.data.subjects[index]?.[1]?.avg_productivity || 0;
-                                bar.style.width = `${pct}%`;
-                            });
-                        }, 300);
-                        
-                        document.getElementById('statBestSubject').textContent = data.data.best_subject ? data.data.best_subject[0] : '-';
-                    } else {
-                        container.innerHTML = `
-                            <div style="text-align:center;color:#95A5A6;padding:20px 0;">
-                                <i class="fas fa-layer-group" style="font-size:32px;display:block;margin-bottom:12px;"></i>
-                                No subjects yet. Add sessions!
-                            </div>
-                        `;
-                    }
-                })
-                .catch(err => {
-                    document.getElementById('subjectBreakdown').innerHTML = '<p style="color:#E74C3C;"><i class="fas fa-exclamation-circle"></i> Error loading subjects</p>';
-                });
-        }
-        loadSubjectBreakdown();
-        
-        // ==========================================
-        // MODAL FUNCTIONS
-        // ==========================================
-        function showAddModal() {
-            document.getElementById('addModal').style.display = 'block';
-            document.getElementById('sessionForm').reset();
-        }
-        
-        function closeModal() {
-            document.getElementById('addModal').style.display = 'none';
-        }
-        
-        // Add session
-        document.getElementById('sessionForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const data = {
-                subject: document.getElementById('subject').value.trim(),
-                duration: parseInt(document.getElementById('duration').value),
-                distractions: parseInt(document.getElementById('distractions').value) || 0,
-                mood: parseInt(document.getElementById('mood').value) || null,
-                notes: document.getElementById('notes').value.trim() || null
-            };
-            
-            if (!data.subject || !data.duration) {
-                alert('Please fill in subject and duration');
-                return;
+                // Check achievements
+                checkAchievements(sessions);
             }
-            
-            const submitBtn = this.querySelector('button[type="submit"]');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-            
-            fetch('/api/sessions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    closeModal();
-                    loadStats();
-                    loadDashboard();
-                    loadWeeklyChart();
-                    loadAIInsight();
-                    loadSubjectBreakdown();
-                    alert('✅ Session added successfully!');
-                } else {
-                    alert('❌ Error: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(err => {
-                console.error('Error:', err);
-                alert('❌ Error adding session');
-            })
-            .finally(() => {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Session';
-            });
-        });
-        
-        // Click outside modal to close
-        window.onclick = function(event) {
-            const modal = document.getElementById('addModal');
-            if (event.target === modal) {
-                closeModal();
-            }
-        }
-        
-        // Refresh every 30 seconds
-        setInterval(() => {
-            loadStats();
-            loadDashboard();
-            loadWeeklyChart();
-            loadAIInsight();
-            loadSubjectBreakdown();
-        }, 30000);
-    </script>
-</body>
-</html>
+        })
+        .catch(err => console.error('Error:', err));
+}
