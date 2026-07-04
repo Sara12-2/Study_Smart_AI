@@ -5,9 +5,10 @@ Enterprise-grade session handling with validation and tracking
 
 from datetime import datetime
 from typing import Dict, Any, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from enum import Enum
 import logging
+import uuid
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -15,14 +16,23 @@ logger = logging.getLogger(__name__)
 
 class ProductivityLevel(Enum):
     """Productivity levels based on distraction count"""
-    EXCELLENT = (100, "🌟 Excellent focus - Zero distractions!")
-    GOOD = (80, "👍 Good focus - Minimal distractions")
-    MODERATE = (60, "📊 Moderate focus - Some distractions")
+    EXCELLENT = (95, "🌟 Excellent focus - Perfect session!")
+    GOOD = (85, "👍 Good focus - Minimal distractions")
+    ABOVE_AVERAGE = (75, "📈 Above average - Keep going!")
+    MODERATE = (65, "📊 Moderate focus - Some distractions")
+    BELOW_AVERAGE = (55, "📉 Below average - Try to focus more")
     LOW = (40, "⚠️ Low focus - Too many distractions")
     
     def __init__(self, score: int, message: str):
         self.score = score
         self.message = message
+
+
+class SessionStatus(Enum):
+    """Session status"""
+    COMPLETED = "completed"
+    INTERRUPTED = "interrupted"
+    IN_PROGRESS = "in_progress"
 
 
 @dataclass
@@ -31,6 +41,7 @@ class StudySession:
     Enterprise-grade Study Session with validation and tracking
     
     Attributes:
+        session_id: Unique session identifier
         subject: Subject name (min 2 chars, max 50)
         duration: Duration in minutes (5-240 minutes)
         distractions: Number of distractions (0-20)
@@ -38,8 +49,10 @@ class StudySession:
         timestamp: ISO format timestamp
         notes: Optional session notes
         mood: Optional mood rating (1-5)
+        status: Session status
     """
     
+    session_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     subject: str
     duration: int
     distractions: int = 0
@@ -47,6 +60,7 @@ class StudySession:
     timestamp: Optional[str] = None
     notes: Optional[str] = None
     mood: Optional[int] = None
+    status: SessionStatus = SessionStatus.COMPLETED
     
     def __post_init__(self):
         """Validate data after initialization"""
@@ -56,7 +70,7 @@ class StudySession:
         self._validate_mood()
         self._set_timestamp()
         self._calculate_productivity()
-        logger.info(f"Session created: {self.subject} - {self.duration}min")
+        logger.info(f"Session created: {self.session_id} - {self.subject} - {self.duration}min")
     
     def _validate_subject(self) -> None:
         """Validate subject name"""
@@ -67,13 +81,15 @@ class StudySession:
         self.subject = self.subject.strip().title()
     
     def _validate_duration(self) -> None:
-        """Validate duration"""
+        """Validate duration with warning for long sessions"""
         if not isinstance(self.duration, int):
             raise TypeError("Duration must be an integer")
         if self.duration < 5:
             raise ValueError("Duration must be at least 5 minutes")
         if self.duration > 240:
             raise ValueError("Duration cannot exceed 240 minutes (4 hours)")
+        if self.duration > 120:
+            logger.warning(f"Long session: {self.duration}min - consider taking a break")
     
     def _validate_distractions(self) -> None:
         """Validate distraction count"""
@@ -102,20 +118,35 @@ class StudySession:
         Calculate productivity score based on distractions
         Uses exponential decay model for realistic scoring
         """
-        if self.distractions == 0:
-            self.productivity_score = ProductivityLevel.EXCELLENT.score
+        # Base productivity
+        base_score = 100
+        
+        # Distraction penalty (exponential)
+        if self.distractions > 0:
+            penalty = min(80, (self.distractions ** 1.5) * 5)
+            base_score -= penalty
+        
+        # Duration bonus (optimal is 45-60 min)
+        duration_factor = 1.0
+        if 45 <= self.duration <= 60:
+            duration_factor = 1.1  # 10% bonus for optimal duration
+        elif self.duration > 120:
+            duration_factor = 0.9  # 10% penalty for long sessions
+        
+        self.productivity_score = max(10, min(100, int(base_score * duration_factor)))
+        
+        # Assign level
+        if self.productivity_score >= 90:
             self._productivity_message = ProductivityLevel.EXCELLENT.message
-        elif self.distractions <= 2:
-            self.productivity_score = ProductivityLevel.GOOD.score
+        elif self.productivity_score >= 80:
             self._productivity_message = ProductivityLevel.GOOD.message
-        elif self.distractions <= 5:
-            self.productivity_score = ProductivityLevel.MODERATE.score
+        elif self.productivity_score >= 70:
+            self._productivity_message = ProductivityLevel.ABOVE_AVERAGE.message
+        elif self.productivity_score >= 60:
             self._productivity_message = ProductivityLevel.MODERATE.message
+        elif self.productivity_score >= 50:
+            self._productivity_message = ProductivityLevel.BELOW_AVERAGE.message
         else:
-            # Exponential decay for high distractions
-            base_score = ProductivityLevel.LOW.score
-            penalty = min(20, (self.distractions - 5) * 2)
-            self.productivity_score = max(10, base_score - penalty)
             self._productivity_message = ProductivityLevel.LOW.message
         
         logger.debug(f"Productivity calculated: {self.productivity_score}%")
@@ -124,16 +155,46 @@ class StudySession:
         """Get productivity level enum"""
         if self.productivity_score >= 90:
             return ProductivityLevel.EXCELLENT
-        elif self.productivity_score >= 70:
+        elif self.productivity_score >= 80:
             return ProductivityLevel.GOOD
-        elif self.productivity_score >= 50:
+        elif self.productivity_score >= 70:
+            return ProductivityLevel.ABOVE_AVERAGE
+        elif self.productivity_score >= 60:
             return ProductivityLevel.MODERATE
+        elif self.productivity_score >= 50:
+            return ProductivityLevel.BELOW_AVERAGE
         else:
             return ProductivityLevel.LOW
     
     def get_productivity_message(self) -> str:
         """Get productivity feedback message"""
         return getattr(self, '_productivity_message', "Productivity calculated")
+    
+    def get_formatted_duration(self) -> str:
+        """Get human-readable duration"""
+        hours = self.duration // 60
+        minutes = self.duration % 60
+        if hours == 0:
+            return f"{minutes} min"
+        elif minutes == 0:
+            return f"{hours} hour{'s' if hours > 1 else ''}"
+        return f"{hours}h {minutes}min"
+    
+    def is_today(self) -> bool:
+        """Check if session is from today"""
+        try:
+            return datetime.now().date() == datetime.fromisoformat(self.timestamp).date()
+        except:
+            return False
+    
+    def is_this_week(self) -> bool:
+        """Check if session is from this week"""
+        try:
+            now = datetime.now()
+            session_date = datetime.fromisoformat(self.timestamp)
+            return session_date.isocalendar()[1] == now.isocalendar()[1]
+        except:
+            return False
     
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -145,6 +206,9 @@ class StudySession:
         data = asdict(self)
         data['productivity_level'] = self.get_productivity_level().name
         data['productivity_message'] = self.get_productivity_message()
+        data['formatted_duration'] = self.get_formatted_duration()
+        data['is_today'] = self.is_today()
+        data['is_this_week'] = self.is_this_week()
         return data
     
     @classmethod
@@ -159,16 +223,18 @@ class StudySession:
             StudySession instance
         """
         return cls(
+            session_id=data.get('session_id', str(uuid.uuid4())[:8]),
             subject=data['subject'],
             duration=data['duration'],
             distractions=data.get('distractions', 0),
             timestamp=data.get('timestamp'),
             notes=data.get('notes'),
-            mood=data.get('mood')
+            mood=data.get('mood'),
+            status=SessionStatus(data.get('status', 'completed'))
         )
     
     def __str__(self) -> str:
-        return f"📚 {self.subject} | {self.duration}min | {self.productivity_score}% productive"
+        return f"📚 {self.subject} | {self.get_formatted_duration()} | {self.productivity_score}% productive"
     
     def __repr__(self) -> str:
-        return f"StudySession(subject='{self.subject}', duration={self.duration}, distractions={self.distractions})"
+        return f"StudySession(id='{self.session_id}', subject='{self.subject}', duration={self.duration}, distractions={self.distractions})"
