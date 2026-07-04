@@ -41,9 +41,9 @@ class StudySession:
     Enterprise-grade Study Session with validation and tracking
     
     Attributes:
-        session_id: Unique session identifier
-        subject: Subject name (min 2 chars, max 50)
-        duration: Duration in minutes (5-240 minutes)
+        subject: Subject name (min 2 chars, max 50) - REQUIRED
+        duration: Duration in minutes (5-240 minutes) - REQUIRED
+        session_id: Unique session identifier (auto-generated)
         distractions: Number of distractions (0-20)
         productivity_score: Calculated score (0-100)
         timestamp: ISO format timestamp
@@ -52,9 +52,17 @@ class StudySession:
         status: Session status
     """
     
-    session_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    # ==========================================
+    # NON-DEFAULT FIELDS FIRST (no default values)
+    # These MUST come before any field with default
+    # ==========================================
     subject: str
     duration: int
+    
+    # ==========================================
+    # DEFAULT FIELDS SECOND (with default values)
+    # ==========================================
+    session_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     distractions: int = 0
     productivity_score: Optional[int] = None
     timestamp: Optional[str] = None
@@ -204,11 +212,17 @@ class StudySession:
             Dict with all session data
         """
         data = asdict(self)
+        
+        # Convert enum to string for JSON serialization
+        if 'status' in data and hasattr(data['status'], 'value'):
+            data['status'] = data['status'].value
+        
         data['productivity_level'] = self.get_productivity_level().name
         data['productivity_message'] = self.get_productivity_message()
         data['formatted_duration'] = self.get_formatted_duration()
         data['is_today'] = self.is_today()
         data['is_this_week'] = self.is_this_week()
+        
         return data
     
     @classmethod
