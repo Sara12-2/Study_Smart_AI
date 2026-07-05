@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Study System - AI-Powered Learning</title>
+    <title>StudySmart AI - Intelligent Study System</title>
     
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -11,7 +11,324 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
+    <!-- Main Stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <style>
+        /* ==========================================
+           SETTINGS NAV ITEM - FIX
+        ========================================== */
+        .nav-item.settings-item {
+            display: flex !important;
+            align-items: center !important;
+            gap: 14px !important;
+            padding: 12px 16px !important;
+            border-radius: 12px !important;
+            color: rgba(255, 255, 255, 0.5) !important;
+            text-decoration: none !important;
+            cursor: pointer !important;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+            margin-top: 12px !important;
+            padding-top: 14px !important;
+            width: 100% !important;
+        }
+        
+        .nav-item.settings-item i.fa-cog {
+            color: #6C5CE7 !important;
+            font-size: 18px !important;
+            width: 24px !important;
+            text-align: center !important;
+            transition: all 0.4s ease !important;
+        }
+        
+        .nav-item.settings-item span {
+            flex: 1 !important;
+            font-weight: 500 !important;
+            font-size: 14px !important;
+            color: rgba(255, 255, 255, 0.5) !important;
+        }
+        
+        .nav-item.settings-item .badge {
+            background: #6C5CE7 !important;
+            color: white !important;
+            font-size: 9px !important;
+            padding: 2px 8px !important;
+            border-radius: 10px !important;
+            margin-left: auto !important;
+        }
+        
+        .nav-item.settings-item:hover {
+            background: rgba(108, 92, 231, 0.08) !important;
+            color: white !important;
+        }
+        
+        .nav-item.settings-item:hover i.fa-cog {
+            transform: rotate(60deg) scale(1.1) !important;
+            color: #a29bfe !important;
+        }
+        
+        .nav-item.settings-item:hover span {
+            color: white !important;
+        }
+        
+        .nav-item.settings-item.active {
+            background: var(--primary-gradient) !important;
+            color: white !important;
+            box-shadow: 0 4px 20px rgba(108, 99, 255, 0.3) !important;
+        }
+        
+        .nav-item.settings-item.active i.fa-cog {
+            color: white !important;
+        }
+        
+        .nav-item.settings-item.active span {
+            color: white !important;
+        }
+        
+        body.dark-mode .nav-item.settings-item {
+            border-top-color: rgba(255, 255, 255, 0.05) !important;
+        }
+        
+        body.dark-mode .nav-item.settings-item:hover {
+            background: rgba(108, 92, 231, 0.15) !important;
+        }
+        
+        /* ==========================================
+           KEYBOARD SHORTCUTS HINT - Premium
+        ========================================== */
+        .shortcuts-hint {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            padding: 12px 24px;
+            border-radius: 14px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+            border: 1px solid rgba(255,255,255,0.2);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s ease;
+        }
+        .shortcuts-hint:hover {
+            transform: translateX(-50%) translateY(-3px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+        }
+        .shortcuts-hint .shortcut-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #95A5A6;
+        }
+        .shortcuts-hint .key {
+            display: inline-block;
+            background: #f0f2f5;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #2D3436;
+            font-family: monospace;
+            border: 1px solid rgba(0,0,0,0.06);
+        }
+        .shortcuts-hint .key-icon {
+            color: #6C5CE7;
+            font-size: 14px;
+            margin-right: 2px;
+        }
+        .shortcuts-hint .divider {
+            color: #D1D1E0;
+            font-size: 14px;
+        }
+        
+        body.dark-mode .shortcuts-hint {
+            background: rgba(45,45,68,0.95);
+            border-color: #3d3d54;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        body.dark-mode .shortcuts-hint .key {
+            background: #3d3d54;
+            color: #e0e0e0;
+            border-color: #4d4d64;
+        }
+        body.dark-mode .shortcuts-hint .divider {
+            color: #4d4d64;
+        }
+        body.dark-mode .shortcuts-hint .shortcut-group {
+            color: #8080A0;
+        }
+        
+        @media (max-width: 768px) {
+            .shortcuts-hint {
+                padding: 10px 16px;
+                gap: 12px;
+                flex-wrap: wrap;
+                justify-content: center;
+                bottom: 16px;
+            }
+            .shortcuts-hint .shortcut-group {
+                font-size: 11px;
+            }
+        }
+        @media (max-width: 480px) {
+            .shortcuts-hint { display: none; }
+        }
+        
+        /* ==========================================
+           SKELETON LOADING
+        ========================================== */
+        .skeleton-wrapper { padding: 8px 0; }
+        .skeleton-line {
+            height: 12px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+            margin: 8px 0;
+        }
+        .skeleton-line.short { width: 40%; }
+        .skeleton-line.medium { width: 70%; }
+        .skeleton-line.long { width: 90%; }
+        body.dark-mode .skeleton-line {
+            background: linear-gradient(90deg, #3d3d54 25%, #4d4d64 50%, #3d3d54 75%);
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        
+        /* ==========================================
+           PREMIUM SUBJECT CARDS (Inline fallback)
+        ========================================== */
+        .subject-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        .subject-card {
+            background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 14px;
+            padding: 18px 16px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .subject-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px rgba(108,99,255,0.15);
+        }
+        body.dark-mode .subject-card {
+            background: rgba(45,45,68,0.8);
+            border-color: rgba(255,255,255,0.06);
+        }
+        .subject-card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 8px;
+            font-size: 18px;
+        }
+        .subject-card-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #1a1a2e;
+        }
+        body.dark-mode .subject-card-name {
+            color: #E8E8F0;
+        }
+        .subject-card-score {
+            font-size: 22px;
+            font-weight: 800;
+            margin: 4px 0;
+        }
+        .subject-card-stats {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            font-size: 11px;
+            color: #95A5A6;
+            flex-wrap: wrap;
+        }
+        .subject-card-stats span i {
+            margin-right: 3px;
+        }
+        .subject-card-progress {
+            height: 4px;
+            background: rgba(0,0,0,0.06);
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .subject-card-progress .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 1s ease;
+        }
+        body.dark-mode .subject-card-progress {
+            background: rgba(255,255,255,0.08);
+        }
+        .subject-card-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: linear-gradient(135deg, #F39C12, #E67E22);
+            color: white;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 10px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .subject-card-badge i {
+            font-size: 10px;
+        }
+        
+        @media (max-width: 992px) {
+            .subject-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 480px) {
+            .subject-grid { grid-template-columns: 1fr; }
+        }
+        
+        /* ==========================================
+           EMPTY & ERROR STATES
+        ========================================== */
+        .empty-state, .error-state {
+            text-align: center;
+            padding: 30px 20px;
+            color: #95A5A6;
+        }
+        .empty-state i, .error-state i {
+            font-size: 40px;
+            display: block;
+            margin-bottom: 12px;
+            color: var(--primary);
+        }
+        .error-state i {
+            color: #E74C3C;
+        }
+        .empty-state p, .error-state p {
+            font-size: 14px;
+            margin: 0;
+        }
+        body.dark-mode .empty-state, body.dark-mode .error-state {
+            color: #8080A0;
+        }
+    </style>
 </head>
 <body>
     <div class="app-container">
@@ -21,9 +338,7 @@
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <div class="logo-icon">
-                        <i class="fas fa-brain"></i>
-                    </div>
+                    <div class="logo-icon"><i class="fas fa-brain"></i></div>
                     <div>
                         <h2>StudySmart</h2>
                         <div class="subtitle">AI-Powered Learning</div>
@@ -57,15 +372,18 @@
                     <span>AI Insights</span>
                 </a>
                 
-                <a href="/settings" class="nav-item" data-page="settings">
-                    <i class="fas fa-cog"></i>
-                    <span>Settings</span>
-                </a>
-                
+                <!-- Dark Mode Toggle -->
                 <div class="nav-item" onclick="toggleDarkMode()" style="margin-top:12px; cursor:pointer;">
                     <i class="fas fa-moon"></i>
                     <span>Dark Mode</span>
                 </div>
+                
+                <!-- Settings Nav Item -->
+                <a href="#" class="nav-item settings-item" data-page="settings" onclick="navigateToSettings(event)">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                    <span class="badge" style="background:#6C5CE7; color:white; font-size:9px;">⚙️</span>
+                </a>
             </nav>
             
             <div class="sidebar-footer">
@@ -83,11 +401,12 @@
             <!-- Top Bar -->
             <header class="top-bar">
                 <div class="search-area">
-                    <h1 id="pageTitle">
-                        <i class="fas fa-chart-pie"></i> Dashboard
-                    </h1>
+                    <h1 id="pageTitle"><i class="fas fa-chart-pie"></i> Dashboard</h1>
                 </div>
                 <div class="user-area">
+                    <button class="btn btn-secondary" onclick="navigateToSettings(event)" title="Settings">
+                        <i class="fas fa-cog"></i>
+                    </button>
                     <button class="btn btn-primary" onclick="showAddModal()">
                         <i class="fas fa-plus-circle"></i> Add Session
                     </button>
@@ -107,11 +426,9 @@
                 ========================================== -->
                 <div id="page-dashboard" class="page active">
                     <!-- Stats Cards -->
-                    <div class="stats-grid" id="statsGrid">
+                    <div class="stats-grid">
                         <div class="stat-card">
-                            <div class="stat-icon purple">
-                                <i class="fas fa-book"></i>
-                            </div>
+                            <div class="stat-icon purple"><i class="fas fa-book"></i></div>
                             <div class="stat-info">
                                 <span class="stat-label">Total Sessions</span>
                                 <span class="stat-value" id="statSessions">0</span>
@@ -119,9 +436,7 @@
                         </div>
                         
                         <div class="stat-card">
-                            <div class="stat-icon green">
-                                <i class="fas fa-clock"></i>
-                            </div>
+                            <div class="stat-icon green"><i class="fas fa-clock"></i></div>
                             <div class="stat-info">
                                 <span class="stat-label">Total Time</span>
                                 <span class="stat-value" id="statTime">0 min</span>
@@ -129,9 +444,7 @@
                         </div>
                         
                         <div class="stat-card">
-                            <div class="stat-icon orange">
-                                <i class="fas fa-rocket"></i>
-                            </div>
+                            <div class="stat-icon orange"><i class="fas fa-rocket"></i></div>
                             <div class="stat-info">
                                 <span class="stat-label">Avg Productivity</span>
                                 <span class="stat-value" id="statProductivity">0%</span>
@@ -139,9 +452,7 @@
                         </div>
                         
                         <div class="stat-card">
-                            <div class="stat-icon pink">
-                                <i class="fas fa-trophy"></i>
-                            </div>
+                            <div class="stat-icon pink"><i class="fas fa-trophy"></i></div>
                             <div class="stat-info">
                                 <span class="stat-label">Best Subject</span>
                                 <span class="stat-value" id="statBestSubject">-</span>
@@ -156,9 +467,10 @@
                             <span id="todayDate" style="font-size:13px;color:#95A5A6;"></span>
                         </div>
                         <div class="card-body" id="todaySummary">
-                            <div class="loading">
-                                <i class="fas fa-spinner"></i>
-                                Loading...
+                            <div class="skeleton-wrapper">
+                                <div class="skeleton-line long"></div>
+                                <div class="skeleton-line medium"></div>
+                                <div class="skeleton-line short"></div>
                             </div>
                         </div>
                     </div>
@@ -169,9 +481,10 @@
                             <h3><i class="fas fa-chart-bar"></i>Subject Breakdown</h3>
                         </div>
                         <div class="card-body" id="subjectBreakdown">
-                            <div class="loading">
-                                <i class="fas fa-spinner"></i>
-                                Loading...
+                            <div class="skeleton-wrapper">
+                                <div class="skeleton-line long"></div>
+                                <div class="skeleton-line medium"></div>
+                                <div class="skeleton-line short"></div>
                             </div>
                         </div>
                     </div>
@@ -184,14 +497,11 @@
                     <div class="card">
                         <div class="card-header">
                             <h3><i class="fas fa-list-ul"></i>All Sessions</h3>
-                            <div style="display:flex;gap:8px;">
-                                <button class="btn btn-secondary btn-sm" onclick="refreshSessions()">
-                                    <i class="fas fa-sync-alt"></i> Refresh
-                                </button>
-                            </div>
+                            <button class="btn btn-secondary btn-sm" onclick="refreshSessions()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
                         </div>
                         <div class="card-body">
-                            <!-- Filters -->
                             <div class="filters">
                                 <input type="date" id="filterDate" onchange="applyFilters()" placeholder="Filter by date">
                                 <select id="filterSubject" onchange="applyFilters()">
@@ -202,10 +512,12 @@
                                     <i class="fas fa-times"></i> Clear
                                 </button>
                             </div>
+                            
                             <div id="sessionsList">
-                                <div class="loading">
-                                    <i class="fas fa-spinner"></i>
-                                    Loading sessions...
+                                <div class="skeleton-wrapper">
+                                    <div class="skeleton-line long"></div>
+                                    <div class="skeleton-line medium"></div>
+                                    <div class="skeleton-line short"></div>
                                 </div>
                             </div>
                         </div>
@@ -221,9 +533,10 @@
                             <h3><i class="fas fa-layer-group"></i>Subject Analysis</h3>
                         </div>
                         <div class="card-body" id="subjectAnalysis">
-                            <div class="loading">
-                                <i class="fas fa-spinner"></i>
-                                Loading...
+                            <div class="skeleton-wrapper">
+                                <div class="skeleton-line long"></div>
+                                <div class="skeleton-line medium"></div>
+                                <div class="skeleton-line short"></div>
                             </div>
                         </div>
                     </div>
@@ -238,27 +551,35 @@
                             <h3><i class="fas fa-robot"></i>AI Insights</h3>
                         </div>
                         <div class="card-body" id="aiInsights">
-                            <div class="loading">
-                                <i class="fas fa-spinner"></i>
-                                Loading insights...
+                            <div class="skeleton-wrapper">
+                                <div class="skeleton-line long"></div>
+                                <div class="skeleton-line medium"></div>
+                                <div class="skeleton-line short"></div>
                             </div>
                         </div>
                     </div>
                 </div>
                 
                 <!-- ==========================================
-                PAGE: SETTINGS
+                PAGE: SETTINGS - PREMIUM
                 ========================================== -->
                 <div id="page-settings" class="page">
                     <div class="card">
                         <div class="card-header">
-                            <h3><i class="fas fa-cog"></i>Settings</h3>
+                            <h3><i class="fas fa-cog"></i> Settings</h3>
+                            <button class="btn btn-secondary btn-sm" onclick="loadSettings()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
                         </div>
                         <div class="card-body">
-                            <div style="text-align:center;padding:40px 0;color:#95A5A6;">
-                                <i class="fas fa-tools" style="font-size:48px;display:block;margin-bottom:16px;color:var(--primary);"></i>
-                                <p>Settings page coming soon!</p>
-                                <p style="font-size:13px;margin-top:8px;">Manage your preferences, backup data, and more.</p>
+                            <div id="settingsContent">
+                                <div class="skeleton-wrapper">
+                                    <div class="skeleton-line long"></div>
+                                    <div class="skeleton-line medium"></div>
+                                    <div class="skeleton-line short"></div>
+                                    <div class="skeleton-line long"></div>
+                                    <div class="skeleton-line medium"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -268,7 +589,28 @@
     </div>
     
     <!-- ==========================================
-    ADD SESSION MODAL - Premium
+    KEYBOARD SHORTCUTS HINT - Premium
+    ========================================== -->
+    <div class="shortcuts-hint">
+        <i class="fas fa-keyboard" style="color:var(--primary);"></i>
+        <div class="shortcut-group">
+            <span class="key"><i class="fas fa-plus-circle key-icon"></i> Ctrl+N</span>
+            <span>New Session</span>
+        </div>
+        <span class="divider">|</span>
+        <div class="shortcut-group">
+            <span class="key"><i class="fas fa-arrow-right key-icon"></i> Ctrl+1-5</span>
+            <span>Navigate</span>
+        </div>
+        <span class="divider">|</span>
+        <div class="shortcut-group">
+            <span class="key"><i class="fas fa-times key-icon"></i> Esc</span>
+            <span>Close Modal</span>
+        </div>
+    </div>
+    
+    <!-- ==========================================
+    ADD SESSION MODAL
     ========================================== -->
     <div id="addModal" class="modal">
         <div class="modal-content">
@@ -296,11 +638,11 @@
                     <label>Mood (1-5)</label>
                     <select id="mood">
                         <option value="">Select mood</option>
-                        <option value="1">😞 Very Bad</option>
-                        <option value="2">😟 Bad</option>
-                        <option value="3">😐 Neutral</option>
-                        <option value="4">😊 Good</option>
-                        <option value="5">😄 Excellent</option>
+                        <option value="1">Very Bad</option>
+                        <option value="2">Bad</option>
+                        <option value="3">Neutral</option>
+                        <option value="4">Good</option>
+                        <option value="5">Excellent</option>
                     </select>
                 </div>
                 
@@ -317,738 +659,905 @@
     </div>
     
     <!-- ==========================================
-    JAVASCRIPT - Complete
+    JAVASCRIPT - Main Script
+    ========================================== -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    
+    <!-- ==========================================
+    SETTINGS JAVASCRIPT - PREMIUM
     ========================================== -->
     <script>
         // ==========================================
-        // TOAST NOTIFICATIONS
+        // NAVIGATE TO SETTINGS
         // ==========================================
-        function showToast(message, type = 'success') {
-            let container = document.getElementById('toastContainer');
-            if (!container) {
-                container = document.createElement('div');
-                container.id = 'toastContainer';
-                document.body.appendChild(container);
-            }
+        function navigateToSettings(event) {
+            if (event) event.preventDefault();
             
-            const colors = {
-                success: '#2ECC71',
-                error: '#E74C3C',
-                warning: '#F39C12',
-                info: '#3498DB'
-            };
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             
-            const icons = {
-                success: 'fa-check-circle',
-                error: 'fa-exclamation-circle',
-                warning: 'fa-exclamation-triangle',
-                info: 'fa-info-circle'
-            };
+            const settingsPage = document.getElementById('page-settings');
+            if (settingsPage) settingsPage.classList.add('active');
             
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.innerHTML = `
-                <i class="fas ${icons[type]}"></i>
-                ${message}
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const settingsNav = document.querySelector('.nav-item[data-page="settings"]');
+            if (settingsNav) settingsNav.classList.add('active');
+            
+            const pageTitle = document.getElementById('pageTitle');
+            if (pageTitle) pageTitle.innerHTML = '<i class="fas fa-cog"></i> Settings';
+            
+            loadSettings();
+        }
+        
+        // ==========================================
+        // LOAD SETTINGS
+        // ==========================================
+        function loadSettings() {
+            const container = document.getElementById('settingsContent');
+            if (!container) return;
+            
+            container.innerHTML = `
+                <div class="skeleton-wrapper">
+                    <div class="skeleton-line long"></div>
+                    <div class="skeleton-line medium"></div>
+                    <div class="skeleton-line short"></div>
+                    <div class="skeleton-line long"></div>
+                    <div class="skeleton-line medium"></div>
+                </div>
             `;
             
-            container.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.style.animation = 'slideOut 0.3s ease';
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
-        
-        // ==========================================
-        // DARK MODE
-        // ==========================================
-        function toggleDarkMode() {
-            document.body.classList.toggle('dark-mode');
-            localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
-            showToast(document.body.classList.contains('dark-mode') ? '🌙 Dark mode enabled' : '☀️ Light mode enabled', 'info');
-        }
-        
-        // Check saved preference
-        if (localStorage.getItem('darkMode') === 'true') {
-            document.body.classList.add('dark-mode');
-        }
-        
-        // ==========================================
-        // EXPORT DATA
-        // ==========================================
-        function exportData() {
-            fetch('/api/analytics/export/csv')
-                .then(res => res.json())
+            fetch('/api/settings')
+                .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        window.location.href = data.file;
-                        showToast('✅ Data exported successfully!', 'success');
+                        renderSettings(data.data);
                     } else {
-                        showToast('⚠️ No data to export', 'warning');
+                        container.innerHTML = `
+                            <div class="error-message">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <p>Failed to load settings: ${data.error || 'Unknown error'}</p>
+                            </div>
+                        `;
                     }
                 })
-                .catch(() => showToast('❌ Export failed', 'error'));
+                .catch(error => {
+                    console.error('Error loading settings:', error);
+                    container.innerHTML = `
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <p>Error loading settings. Please try again.</p>
+                        </div>
+                    `;
+                });
         }
         
         // ==========================================
-        // ACHIEVEMENTS
+        // RENDER SETTINGS FORM - PREMIUM
         // ==========================================
-        function checkAchievements(sessions) {
-            const achievements = {
-                5: '🎯 5 Sessions - Great Start!',
-                10: '🔥 10 Sessions - Building Momentum!',
-                25: '💪 25 Sessions - Consistency!',
-                50: '🏆 50 Sessions - You\'re on Fire!',
-                100: '🌟 100 Sessions - Master Level!'
+        function renderSettings(settings) {
+            const container = document.getElementById('settingsContent');
+            if (!container) return;
+            
+            const s = settings || {
+                theme: 'light',
+                notifications: true,
+                study_reminder: true,
+                reminder_interval: 60,
+                default_subject: '',
+                daily_goal: 120,
+                weekly_goal: 600,
+                language: 'en',
+                time_format: '24h',
+                sound_effects: true,
+                auto_backup: true,
+                backup_interval: 7
             };
             
-            for (const [count, message] of Object.entries(achievements)) {
-                if (sessions >= parseInt(count)) {
-                    // Confetti effect
-                    const colors = ['#6C63FF', '#2ECC71', '#F39C12', '#FF6584', '#3498DB'];
-                    for (let i = 0; i < 50; i++) {
-                        const confetti = document.createElement('div');
-                        confetti.style.cssText = `
-                            position: fixed;
-                            top: -10px;
-                            left: ${Math.random() * 100}vw;
-                            width: ${5 + Math.random() * 10}px;
-                            height: ${5 + Math.random() * 10}px;
-                            background: ${colors[Math.floor(Math.random() * colors.length)]};
-                            border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
-                            animation: confettiFall ${2 + Math.random() * 2}s ease-in forwards;
-                            z-index: 9999;
-                        `;
-                        document.body.appendChild(confetti);
-                        setTimeout(() => confetti.remove(), 4000);
-                    }
-                    showToast(`🏆 ${message}`, 'success');
-                    break;
-                }
-            }
-        }
-        
-        // ==========================================
-        // NAVIGATION
-        // ==========================================
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', function(e) {
-                const page = this.dataset.page;
-                if (!page) return;
-                
-                e.preventDefault();
-                
-                // Update nav
-                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                this.classList.add('active');
-                
-                // Update pages
-                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-                document.getElementById(`page-${page}`).classList.add('active');
-                
-                // Update title
-                const titles = {
-                    dashboard: 'Dashboard',
-                    sessions: 'Sessions',
-                    subjects: 'Subjects',
-                    insights: 'AI Insights',
-                    settings: 'Settings'
-                };
-                const icons = {
-                    dashboard: 'fa-chart-pie',
-                    sessions: 'fa-book-open',
-                    subjects: 'fa-layer-group',
-                    insights: 'fa-robot',
-                    settings: 'fa-cog'
-                };
-                
-                document.getElementById('pageTitle').innerHTML = `
-                    <i class="fas ${icons[page]}"></i> ${titles[page]}
-                `;
-                
-                // Load content if needed
-                if (page === 'sessions') loadSessions();
-                if (page === 'subjects') loadSubjectAnalysis();
-                if (page === 'insights') loadAIInsights();
-            });
-        });
-        
-        // ==========================================
-        // DATE
-        // ==========================================
-        function updateDate() {
-            const now = new Date();
-            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            document.getElementById('currentDate').innerHTML = `
-                <i class="far fa-calendar-alt"></i> ${now.toLocaleDateString('en-US', options)}
+            container.innerHTML = `
+                <form id="settingsForm" onsubmit="saveSettings(event)">
+                    <!-- Appearance -->
+                    <div class="settings-section">
+                        <div class="settings-section-title">
+                            <i class="fas fa-palette"></i> Appearance
+                        </div>
+                        <div class="settings-grid">
+                            <div class="settings-group">
+                                <label><i class="fas fa-moon"></i> Theme</label>
+                                <select id="settingTheme" class="settings-input">
+                                    <option value="light" ${s.theme === 'light' ? 'selected' : ''}><i class="fas fa-sun"></i> Light</option>
+                                    <option value="dark" ${s.theme === 'dark' ? 'selected' : ''}><i class="fas fa-moon"></i> Dark</option>
+                                    <option value="auto" ${s.theme === 'auto' ? 'selected' : ''}><i class="fas fa-sync-alt"></i> Auto</option>
+                                </select>
+                            </div>
+                            <div class="settings-group">
+                                <label><i class="fas fa-globe"></i> Language</label>
+                                <select id="settingLanguage" class="settings-input">
+                                    <option value="en" ${s.language === 'en' ? 'selected' : ''}><i class="fas fa-flag"></i> English</option>
+                                    <option value="ur" ${s.language === 'ur' ? 'selected' : ''}><i class="fas fa-flag"></i> Urdu</option>
+                                    <option value="hi" ${s.language === 'hi' ? 'selected' : ''}><i class="fas fa-flag"></i> Hindi</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Study Goals -->
+                    <div class="settings-section">
+                        <div class="settings-section-title">
+                            <i class="fas fa-bullseye"></i> Study Goals
+                        </div>
+                        <div class="settings-grid">
+                            <div class="settings-group">
+                                <label><i class="fas fa-calendar-day"></i> Daily Goal (minutes)</label>
+                                <input type="number" id="settingDailyGoal" class="settings-input" 
+                                       value="${s.daily_goal}" min="30" max="480" step="10">
+                                <span class="help-text"><i class="fas fa-info-circle"></i> Recommended: 120 min</span>
+                            </div>
+                            <div class="settings-group">
+                                <label><i class="fas fa-calendar-week"></i> Weekly Goal (minutes)</label>
+                                <input type="number" id="settingWeeklyGoal" class="settings-input" 
+                                       value="${s.weekly_goal}" min="120" max="1680" step="30">
+                                <span class="help-text"><i class="fas fa-info-circle"></i> Recommended: 600 min</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Preferences -->
+                    <div class="settings-section">
+                        <div class="settings-section-title">
+                            <i class="fas fa-sliders-h"></i> Preferences
+                        </div>
+                        <div class="settings-grid">
+                            <div class="settings-group">
+                                <label><i class="fas fa-book"></i> Default Subject</label>
+                                <input type="text" id="settingDefaultSubject" class="settings-input" 
+                                       value="${s.default_subject || ''}" placeholder="e.g., Python">
+                                <span class="help-text"><i class="fas fa-info-circle"></i> Auto-filled when adding sessions</span>
+                            </div>
+                            <div class="settings-group">
+                                <label><i class="fas fa-clock"></i> Time Format</label>
+                                <select id="settingTimeFormat" class="settings-input">
+                                    <option value="12h" ${s.time_format === '12h' ? 'selected' : ''}><i class="fas fa-clock"></i> 12-hour (AM/PM)</option>
+                                    <option value="24h" ${s.time_format === '24h' ? 'selected' : ''}><i class="fas fa-clock"></i> 24-hour</option>
+                                </select>
+                            </div>
+                            <div class="settings-group">
+                                <label><i class="fas fa-bell"></i> Reminder Interval</label>
+                                <select id="settingReminderInterval" class="settings-input">
+                                    <option value="15" ${s.reminder_interval === 15 ? 'selected' : ''}>15 minutes</option>
+                                    <option value="30" ${s.reminder_interval === 30 ? 'selected' : ''}>30 minutes</option>
+                                    <option value="45" ${s.reminder_interval === 45 ? 'selected' : ''}>45 minutes</option>
+                                    <option value="60" ${s.reminder_interval === 60 ? 'selected' : ''}>60 minutes</option>
+                                    <option value="90" ${s.reminder_interval === 90 ? 'selected' : ''}>90 minutes</option>
+                                    <option value="120" ${s.reminder_interval === 120 ? 'selected' : ''}>120 minutes</option>
+                                </select>
+                                <span class="help-text"><i class="fas fa-info-circle"></i> How often to remind you</span>
+                            </div>
+                            <div class="settings-group">
+                                <label><i class="fas fa-database"></i> Auto Backup</label>
+                                <select id="settingBackupInterval" class="settings-input">
+                                    <option value="1" ${s.backup_interval === 1 ? 'selected' : ''}>Every day</option>
+                                    <option value="3" ${s.backup_interval === 3 ? 'selected' : ''}>Every 3 days</option>
+                                    <option value="7" ${s.backup_interval === 7 ? 'selected' : ''}>Every week</option>
+                                    <option value="14" ${s.backup_interval === 14 ? 'selected' : ''}>Every 2 weeks</option>
+                                    <option value="30" ${s.backup_interval === 30 ? 'selected' : ''}>Every month</option>
+                                </select>
+                                <span class="help-text"><i class="fas fa-info-circle"></i> Automatically backup your data</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Features -->
+                    <div class="settings-section">
+                        <div class="settings-section-title">
+                            <i class="fas fa-toggle-on"></i> Features
+                        </div>
+                        <div class="settings-toggles">
+                            <div class="toggle-group">
+                                <label class="toggle-label">
+                                    <span><i class="fas fa-bell"></i> Notifications</span>
+                                    <div class="toggle-switch ${s.notifications ? 'active' : ''}" onclick="toggleSwitch(this)">
+                                        <input type="hidden" id="settingNotifications" value="${s.notifications}">
+                                        <span class="toggle-slider"></span>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="toggle-group">
+                                <label class="toggle-label">
+                                    <span><i class="fas fa-clock"></i> Study Reminder</span>
+                                    <div class="toggle-switch ${s.study_reminder ? 'active' : ''}" onclick="toggleSwitch(this)">
+                                        <input type="hidden" id="settingStudyReminder" value="${s.study_reminder}">
+                                        <span class="toggle-slider"></span>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="toggle-group">
+                                <label class="toggle-label">
+                                    <span><i class="fas fa-volume-up"></i> Sound Effects</span>
+                                    <div class="toggle-switch ${s.sound_effects ? 'active' : ''}" onclick="toggleSwitch(this)">
+                                        <input type="hidden" id="settingSoundEffects" value="${s.sound_effects}">
+                                        <span class="toggle-slider"></span>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="toggle-group">
+                                <label class="toggle-label">
+                                    <span><i class="fas fa-database"></i> Auto Backup</span>
+                                    <div class="toggle-switch ${s.auto_backup ? 'active' : ''}" onclick="toggleSwitch(this)">
+                                        <input type="hidden" id="settingAutoBackup" value="${s.auto_backup}">
+                                        <span class="toggle-slider"></span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Danger Zone -->
+                    <div class="settings-section danger-zone">
+                        <div class="settings-section-title danger-title">
+                            <i class="fas fa-exclamation-triangle"></i> Danger Zone
+                        </div>
+                        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-danger" onclick="clearAllData()">
+                                <i class="fas fa-trash"></i> Clear All Data
+                            </button>
+                            <button type="button" class="btn btn-danger" onclick="resetSettings()">
+                                <i class="fas fa-undo-alt"></i> Reset Settings
+                            </button>
+                        </div>
+                        <div class="danger-text">
+                            <i class="fas fa-info-circle"></i> These actions cannot be undone!
+                        </div>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div class="settings-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Settings
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="loadSettings()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="navigateTo('dashboard')">
+                            <i class="fas fa-arrow-left"></i> Back to Dashboard
+                        </button>
+                    </div>
+                    
+                    <div id="settingsMessage" class="settings-message"></div>
+                </form>
             `;
-            document.getElementById('todayDate').textContent = now.toLocaleDateString('en-US', options);
-        }
-        updateDate();
-        
-        // ==========================================
-        // STATS
-        // ==========================================
-        function loadStats() {
-            fetch('/api/stats')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        const sessions = data.data.total_sessions || 0;
-                        document.getElementById('statSessions').textContent = sessions;
-                        document.getElementById('statTime').textContent = `${data.data.total_time || 0} min`;
-                        document.getElementById('statProductivity').textContent = `${data.data.avg_productivity || 0}%`;
-                        document.getElementById('totalSessions').textContent = sessions;
-                        document.getElementById('sessionBadge').textContent = sessions;
-                        checkAchievements(sessions);
-                    }
-                })
-                .catch(err => console.error('Error:', err));
-        }
-        loadStats();
-        
-        // ==========================================
-        // DASHBOARD
-        // ==========================================
-        function loadDashboard() {
-            fetch('/api/dashboard')
-                .then(res => res.json())
-                .then(data => {
-                    const container = document.getElementById('todaySummary');
-                    if (data.success && data.data) {
-                        const d = data.data;
-                        container.innerHTML = `
-                            <div class="summary-row">
-                                <span><i class="fas fa-book" style="color:var(--primary);"></i>Sessions</span>
-                                <strong>${d.total_sessions}</strong>
-                            </div>
-                            <div class="summary-row">
-                                <span><i class="fas fa-clock" style="color:#2ECC71;"></i>Total Time</span>
-                                <strong>${d.total_time} min</strong>
-                            </div>
-                            <div class="summary-row">
-                                <span><i class="fas fa-rocket" style="color:#F39C12;"></i>Avg Productivity</span>
-                                <strong style="color: ${d.avg_productivity >= 70 ? '#2ECC71' : d.avg_productivity >= 50 ? '#F39C12' : '#E74C3C'}">
-                                    ${d.avg_productivity}%
-                                </strong>
-                            </div>
-                            <div class="summary-row">
-                                <span><i class="fas fa-exclamation-triangle" style="color:#E74C3C;"></i>Distractions</span>
-                                <strong>${d.total_distractions}</strong>
-                            </div>
-                            ${d.best_subject && d.best_subject.name ? `
-                                <div class="summary-row">
-                                    <span><i class="fas fa-trophy" style="color:#F39C12;"></i>Best Subject</span>
-                                    <strong>${d.best_subject.name} (${d.best_subject.score}%)</strong>
-                                </div>
-                            ` : ''}
-                            ${d.peak_hour ? `
-                                <div class="summary-row">
-                                    <span><i class="fas fa-clock" style="color:var(--primary);"></i>Peak Hour</span>
-                                    <strong>${String(d.peak_hour).padStart(2, '0')}:00</strong>
-                                </div>
-                            ` : ''}
-                        `;
-                    } else {
-                        container.innerHTML = `
-                            <div style="text-align:center;color:#95A5A6;padding:30px 0;">
-                                <i class="fas fa-inbox" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
-                                <p>No sessions today</p>
-                                <p style="font-size:13px;margin-top:4px;">Start tracking your study sessions!</p>
-                            </div>
-                        `;
-                    }
-                })
-                .catch(err => {
-                    document.getElementById('todaySummary').innerHTML = `
-                        <p style="color:#E74C3C;text-align:center;">
-                            <i class="fas fa-exclamation-circle"></i> Error loading dashboard
-                        </p>
-                    `;
-                });
-        }
-        loadDashboard();
-        
-        // ==========================================
-        // SUBJECT BREAKDOWN
-        // ==========================================
-        function loadSubjectBreakdown() {
-            fetch('/api/subjects')
-                .then(res => res.json())
-                .then(data => {
-                    const container = document.getElementById('subjectBreakdown');
-                    if (data.success && data.data && data.data.subjects) {
-                        let html = '';
-                        data.data.subjects.slice(0, 5).forEach(([subject, metrics]) => {
-                            const pct = metrics.avg_productivity;
-                            const color = pct >= 70 ? '#2ECC71' : pct >= 50 ? '#F39C12' : '#E74C3C';
-                            html += `
-                                <div class="subject-item">
-                                    <div class="subject-header">
-                                        <span class="name"><i class="fas fa-book"></i>${subject}</span>
-                                        <span class="score" style="color:${color};">${pct}%</span>
-                                    </div>
-                                    <div class="progress-bar">
-                                        <div class="fill" style="width:0%;background:${color};"></div>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        container.innerHTML = html;
-                        
-                        // Animate bars
-                        setTimeout(() => {
-                            document.querySelectorAll('.subject-item .fill').forEach((bar, index) => {
-                                const pct = data.data.subjects[index]?.[1]?.avg_productivity || 0;
-                                bar.style.width = `${pct}%`;
-                            });
-                        }, 300);
-                        
-                        document.getElementById('statBestSubject').textContent = data.data.best_subject ? data.data.best_subject[0] : '-';
-                    } else {
-                        container.innerHTML = `
-                            <div style="text-align:center;color:#95A5A6;padding:30px 0;">
-                                <i class="fas fa-layer-group" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
-                                <p>No subjects yet</p>
-                                <p style="font-size:13px;margin-top:4px;">Add sessions to see subject analysis!</p>
-                            </div>
-                        `;
-                    }
-                })
-                .catch(err => {
-                    document.getElementById('subjectBreakdown').innerHTML = `
-                        <p style="color:#E74C3C;text-align:center;">
-                            <i class="fas fa-exclamation-circle"></i> Error loading subjects
-                        </p>
-                    `;
-                });
-        }
-        loadSubjectBreakdown();
-        
-        // ==========================================
-        // SESSIONS
-        // ==========================================
-        function loadSessions() {
-            fetch('/api/sessions')
-                .then(res => res.json())
-                .then(data => {
-                    const container = document.getElementById('sessionsList');
-                    if (data.success && data.data && data.data.length > 0) {
-                        let html = '';
-                        data.data.slice().reverse().forEach((session, index) => {
-                            const score = session.productivity_score || 0;
-                            const scoreClass = score >= 70 ? 'score-high' : score >= 50 ? 'score-medium' : 'score-low';
-                            const date = session.timestamp ? session.timestamp.substring(0, 16).replace('T', ' ') : 'Unknown';
-                            const actualIndex = data.data.length - 1 - index;
-                            
-                            html += `
-                                <div class="session-item">
-                                    <div class="session-info">
-                                        <div class="session-subject">${session.subject}</div>
-                                        <div class="session-meta">
-                                            <i class="fas fa-clock"></i> ${session.duration}min
-                                            <i class="fas fa-calendar-alt" style="margin-left:12px;"></i> ${date}
-                                            ${session.distractions ? ` <i class="fas fa-exclamation-triangle" style="margin-left:12px;color:#F39C12;"></i> ${session.distractions} distractions` : ''}
-                                            ${session.mood ? ` <i class="fas fa-smile" style="margin-left:12px;"></i> ${session.mood}/5` : ''}
-                                        </div>
-                                    </div>
-                                    <div style="display:flex;align-items:center;gap:10px;">
-                                        <span class="session-score ${scoreClass}">${score}%</span>
-                                        <button class="btn btn-secondary btn-sm" onclick="deleteSession(${actualIndex})" style="color:#E74C3C;border-color:#E74C3C;">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        container.innerHTML = html;
-                        
-                        // Update subject filter
-                        updateSubjectFilter(data.data);
-                    } else {
-                        container.innerHTML = `
-                            <div style="text-align:center;color:#95A5A6;padding:30px 0;">
-                                <i class="fas fa-book-open" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
-                                <p>No sessions found</p>
-                                <p style="font-size:13px;margin-top:4px;">Start tracking your study sessions!</p>
-                            </div>
-                        `;
-                    }
-                })
-                .catch(err => {
-                    document.getElementById('sessionsList').innerHTML = `
-                        <p style="color:#E74C3C;text-align:center;">
-                            <i class="fas fa-exclamation-circle"></i> Error loading sessions
-                        </p>
-                    `;
-                });
         }
         
-        function updateSubjectFilter(sessions) {
-            const select = document.getElementById('filterSubject');
-            const subjects = [...new Set(sessions.map(s => s.subject))];
-            const currentValue = select.value;
-            select.innerHTML = '<option value="">All Subjects</option>';
-            subjects.forEach(subject => {
-                const option = document.createElement('option');
-                option.value = subject;
-                option.textContent = subject;
-                select.appendChild(option);
-            });
-            select.value = currentValue;
+        // ==========================================
+        // TOGGLE SWITCH
+        // ==========================================
+        function toggleSwitch(element) {
+            element.classList.toggle('active');
+            const hiddenInput = element.querySelector('input[type="hidden"]');
+            if (hiddenInput) {
+                hiddenInput.value = element.classList.contains('active');
+            }
         }
         
-        function refreshSessions() {
-            loadSessions();
-            showToast('🔄 Sessions refreshed', 'info');
-        }
-        
-        function deleteSession(id) {
-            if (!confirm('Delete this session?')) return;
+        // ==========================================
+        // SAVE SETTINGS
+        // ==========================================
+        function saveSettings(event) {
+            event.preventDefault();
             
-            fetch(`/api/sessions/${id}`, { method: 'DELETE' })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        loadSessions();
-                        loadStats();
-                        loadDashboard();
-                        loadSubjectBreakdown();
-                        showToast('✅ Session deleted successfully', 'success');
-                    } else {
-                        showToast('❌ Error deleting session', 'error');
-                    }
-                })
-                .catch(err => showToast('❌ Error deleting session', 'error'));
-        }
-        
-        // ==========================================
-        // SESSION FILTERS
-        // ==========================================
-        function applyFilters() {
-            const date = document.getElementById('filterDate').value;
-            const subject = document.getElementById('filterSubject').value;
-            
-            fetch(`/api/sessions?date=${date}&subject=${subject}`)
-                .then(res => res.json())
-                .then(data => {
-                    const container = document.getElementById('sessionsList');
-                    if (data.success && data.data && data.data.length > 0) {
-                        let html = '';
-                        data.data.slice().reverse().forEach((session, index) => {
-                            const score = session.productivity_score || 0;
-                            const scoreClass = score >= 70 ? 'score-high' : score >= 50 ? 'score-medium' : 'score-low';
-                            const dateStr = session.timestamp ? session.timestamp.substring(0, 16).replace('T', ' ') : 'Unknown';
-                            const actualIndex = data.data.length - 1 - index;
-                            
-                            html += `
-                                <div class="session-item">
-                                    <div class="session-info">
-                                        <div class="session-subject">${session.subject}</div>
-                                        <div class="session-meta">
-                                            <i class="fas fa-clock"></i> ${session.duration}min
-                                            <i class="fas fa-calendar-alt" style="margin-left:12px;"></i> ${dateStr}
-                                            ${session.distractions ? ` <i class="fas fa-exclamation-triangle" style="margin-left:12px;color:#F39C12;"></i> ${session.distractions} distractions` : ''}
-                                            ${session.mood ? ` <i class="fas fa-smile" style="margin-left:12px;"></i> ${session.mood}/5` : ''}
-                                        </div>
-                                    </div>
-                                    <div style="display:flex;align-items:center;gap:10px;">
-                                        <span class="session-score ${scoreClass}">${score}%</span>
-                                        <button class="btn btn-secondary btn-sm" onclick="deleteSession(${actualIndex})" style="color:#E74C3C;border-color:#E74C3C;">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        container.innerHTML = html;
-                    } else {
-                        container.innerHTML = `
-                            <div style="text-align:center;color:#95A5A6;padding:30px 0;">
-                                <i class="fas fa-search" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
-                                <p>No sessions found with current filters</p>
-                            </div>
-                        `;
-                    }
-                })
-                .catch(err => console.error('Error:', err));
-        }
-        
-        function clearFilters() {
-            document.getElementById('filterDate').value = '';
-            document.getElementById('filterSubject').value = '';
-            document.getElementById('searchSessions').value = '';
-            loadSessions();
-            showToast('🧹 Filters cleared', 'info');
-        }
-        
-        function searchSessions() {
-            const query = document.getElementById('searchSessions').value.toLowerCase();
-            const items = document.querySelectorAll('#sessionsList .session-item');
-            items.forEach(item => {
-                const text = item.textContent.toLowerCase();
-                item.style.display = text.includes(query) ? 'flex' : 'none';
-            });
-        }
-        
-        // ==========================================
-        // SUBJECT ANALYSIS (Page)
-        // ==========================================
-        function loadSubjectAnalysis() {
-            fetch('/api/subjects')
-                .then(res => res.json())
-                .then(data => {
-                    const container = document.getElementById('subjectAnalysis');
-                    if (data.success && data.data && data.data.subjects) {
-                        let html = `
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-                                <div style="background:linear-gradient(135deg,#2ECC71,#27AE60);color:white;padding:16px;border-radius:12px;text-align:center;">
-                                    <div style="font-size:12px;opacity:0.8;">Best Subject</div>
-                                    <div style="font-size:20px;font-weight:700;margin-top:4px;">
-                                        ${data.data.best_subject ? data.data.best_subject[0] : '-'}
-                                    </div>
-                                    <div style="font-size:14px;opacity:0.9;">
-                                        ${data.data.best_subject ? data.data.best_subject[1].avg_productivity + '%' : ''}
-                                    </div>
-                                </div>
-                                <div style="background:linear-gradient(135deg,#E74C3C,#C0392B);color:white;padding:16px;border-radius:12px;text-align:center;">
-                                    <div style="font-size:12px;opacity:0.8;">Worst Subject</div>
-                                    <div style="font-size:20px;font-weight:700;margin-top:4px;">
-                                        ${data.data.worst_subject ? data.data.worst_subject[0] : '-'}
-                                    </div>
-                                    <div style="font-size:14px;opacity:0.9;">
-                                        ${data.data.worst_subject ? data.data.worst_subject[1].avg_productivity + '%' : ''}
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                        
-                        data.data.subjects.forEach(([subject, metrics]) => {
-                            const pct = metrics.avg_productivity;
-                            const color = pct >= 70 ? '#2ECC71' : pct >= 50 ? '#F39C12' : '#E74C3C';
-                            html += `
-                                <div class="subject-item">
-                                    <div class="subject-header">
-                                        <span class="name"><i class="fas fa-book" style="color:${color};"></i>${subject}</span>
-                                        <span class="score" style="color:${color};">${pct}%</span>
-                                    </div>
-                                    <div style="display:flex;justify-content:space-between;font-size:12px;color:#95A5A6;margin-top:2px;">
-                                        <span><i class="fas fa-clock"></i> ${metrics.total_time} min</span>
-                                        <span><i class="fas fa-layer-group"></i> ${metrics.sessions} sessions</span>
-                                        <span><i class="fas fa-exclamation-triangle"></i> ${metrics.avg_distractions} distractions</span>
-                                    </div>
-                                    <div class="progress-bar" style="margin-top:4px;">
-                                        <div class="fill" style="width:0%;background:${color};"></div>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        container.innerHTML = html;
-                        
-                        // Animate bars
-                        setTimeout(() => {
-                            document.querySelectorAll('#subjectAnalysis .fill').forEach((bar, index) => {
-                                const subjectData = data.data.subjects[index];
-                                if (subjectData) {
-                                    bar.style.width = `${subjectData[1].avg_productivity}%`;
-                                }
-                            });
-                        }, 300);
-                    } else {
-                        container.innerHTML = `
-                            <div style="text-align:center;color:#95A5A6;padding:30px 0;">
-                                <i class="fas fa-layer-group" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
-                                <p>No subjects yet</p>
-                                <p style="font-size:13px;margin-top:4px;">Add sessions to see subject analysis!</p>
-                            </div>
-                        `;
-                    }
-                })
-                .catch(err => {
-                    document.getElementById('subjectAnalysis').innerHTML = `
-                        <p style="color:#E74C3C;text-align:center;">
-                            <i class="fas fa-exclamation-circle"></i> Error loading subject analysis
-                        </p>
-                    `;
-                });
-        }
-        
-        // ==========================================
-        // AI INSIGHTS
-        // ==========================================
-        function loadAIInsights() {
-            fetch('/api/insights')
-                .then(res => res.json())
-                .then(data => {
-                    const container = document.getElementById('aiInsights');
-                    if (data.success && data.data) {
-                        const insights = data.data;
-                        let html = '';
-                        
-                        // Optimal Times
-                        if (insights.optimal_times && !insights.optimal_times.error) {
-                            const ot = insights.optimal_times;
-                            html += `
-                                <div class="insight-box">
-                                    <h4><i class="fas fa-clock"></i> Best Time to Study</h4>
-                                    <p>${String(ot.best_hour).padStart(2, '0')}:00</p>
-                                    <div class="sub-text">${ot.best_hour_productivity}% average productivity</div>
-                                </div>
-                                <div style="padding:4px 0;margin-bottom:16px;">
-                                    <p style="font-size:14px;color:#2D3436;">
-                                        <i class="fas fa-lightbulb" style="color:#F39C12;margin-right:8px;"></i>
-                                        ${ot.recommendation || 'Keep tracking to get personalized recommendations!'}
-                                    </p>
-                                </div>
-                            `;
-                        }
-                        
-                        // Trends
-                        if (insights.trends && !insights.trends.error) {
-                            const trendEmoji = insights.trends.trend_direction === 'improving' ? '📈' : 
-                                              insights.trends.trend_direction === 'declining' ? '📉' : '➡️';
-                            const trendColor = insights.trends.trend_direction === 'improving' ? '#2ECC71' : 
-                                             insights.trends.trend_direction === 'declining' ? '#E74C3C' : '#F39C12';
-                            html += `
-                                <div style="background:#f8f9fa;padding:16px;border-radius:12px;margin-top:16px;">
-                                    <h4 style="margin-bottom:8px;font-size:14px;">
-                                        <i class="fas fa-chart-line" style="color:${trendColor};"></i> 
-                                        Productivity Trends (30 days)
-                                    </h4>
-                                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
-                                        <div>
-                                            <div style="font-size:11px;color:#95A5A6;">Trend</div>
-                                            <div style="font-size:16px;font-weight:700;color:${trendColor};">
-                                                ${trendEmoji} ${insights.trends.trend_direction}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div style="font-size:11px;color:#95A5A6;">Avg</div>
-                                            <div style="font-size:16px;font-weight:700;">${insights.trends.avg_productivity}%</div>
-                                        </div>
-                                        <div>
-                                            <div style="font-size:11px;color:#95A5A6;">Consistency</div>
-                                            <div style="font-size:16px;font-weight:700;">${insights.trends.consistency}%</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                        }
-                        
-                        if (html) {
-                            container.innerHTML = html;
-                        } else {
-                            container.innerHTML = `
-                                <div style="text-align:center;color:#95A5A6;padding:30px 0;">
-                                    <i class="fas fa-robot" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
-                                    <p>Add more sessions for AI insights!</p>
-                                    <p style="font-size:13px;margin-top:4px;">Need at least 5 sessions for analysis</p>
-                                </div>
-                            `;
-                        }
-                    } else {
-                        container.innerHTML = `
-                            <div style="text-align:center;color:#95A5A6;padding:30px 0;">
-                                <i class="fas fa-robot" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
-                                <p>Add more sessions for AI insights!</p>
-                                <p style="font-size:13px;margin-top:4px;">Need at least 5 sessions for analysis</p>
-                            </div>
-                        `;
-                    }
-                })
-                .catch(err => {
-                    document.getElementById('aiInsights').innerHTML = `
-                        <p style="color:#E74C3C;text-align:center;">
-                            <i class="fas fa-exclamation-circle"></i> Error loading AI insights
-                        </p>
-                    `;
-                });
-        }
-        
-        // ==========================================
-        // MODAL
-        // ==========================================
-        function showAddModal() {
-            document.getElementById('addModal').style.display = 'block';
-            document.getElementById('sessionForm').reset();
-        }
-        
-        function closeModal() {
-            document.getElementById('addModal').style.display = 'none';
-        }
-        
-        document.getElementById('sessionForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const data = {
-                subject: document.getElementById('subject').value.trim(),
-                duration: parseInt(document.getElementById('duration').value),
-                distractions: parseInt(document.getElementById('distractions').value) || 0,
-                mood: parseInt(document.getElementById('mood').value) || null,
-                notes: document.getElementById('notes').value.trim() || null
+            const settings = {
+                theme: document.getElementById('settingTheme')?.value || 'light',
+                language: document.getElementById('settingLanguage')?.value || 'en',
+                time_format: document.getElementById('settingTimeFormat')?.value || '24h',
+                daily_goal: parseInt(document.getElementById('settingDailyGoal')?.value) || 120,
+                weekly_goal: parseInt(document.getElementById('settingWeeklyGoal')?.value) || 600,
+                default_subject: document.getElementById('settingDefaultSubject')?.value || '',
+                reminder_interval: parseInt(document.getElementById('settingReminderInterval')?.value) || 60,
+                backup_interval: parseInt(document.getElementById('settingBackupInterval')?.value) || 7,
+                notifications: document.getElementById('settingNotifications')?.value === 'true',
+                study_reminder: document.getElementById('settingStudyReminder')?.value === 'true',
+                sound_effects: document.getElementById('settingSoundEffects')?.value === 'true',
+                auto_backup: document.getElementById('settingAutoBackup')?.value === 'true'
             };
             
-            if (!data.subject || !data.duration) {
-                showToast('⚠️ Please fill in subject and duration', 'warning');
-                return;
-            }
+            const messageEl = document.getElementById('settingsMessage');
             
-            const btn = this.querySelector('button[type="submit"]');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            messageEl.innerHTML = `
+                <div class="info-message">
+                    <i class="fas fa-spinner fa-spin"></i> Saving settings...
+                </div>
+            `;
             
-            fetch('/api/sessions', {
+            fetch('/api/settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+                body: JSON.stringify(settings)
             })
-            .then(res => res.json())
+            .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    closeModal();
-                    loadStats();
-                    loadDashboard();
-                    loadSubjectBreakdown();
-                    loadSessions();
-                    loadAIInsights();
-                    loadSubjectAnalysis();
-                    showToast('✅ Session added successfully!', 'success');
+                    messageEl.innerHTML = `
+                        <div class="success-message">
+                            <i class="fas fa-check-circle"></i> Settings saved successfully!
+                        </div>
+                    `;
+                    
+                    if (settings.theme === 'dark') {
+                        document.body.classList.add('dark-mode');
+                    } else {
+                        document.body.classList.remove('dark-mode');
+                    }
+                    
+                    setTimeout(() => messageEl.innerHTML = '', 3000);
                 } else {
-                    showToast('❌ Error: ' + (data.error || 'Unknown error'), 'error');
+                    messageEl.innerHTML = `
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i> ${data.error || 'Failed to save settings'}
+                        </div>
+                    `;
                 }
             })
-            .catch(err => {
-                console.error('Error:', err);
-                showToast('❌ Error adding session', 'error');
-            })
-            .finally(() => {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-save"></i> Save Session';
+            .catch(error => {
+                messageEl.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle"></i> Error saving settings
+                    </div>
+                `;
             });
-        });
-        
-        window.onclick = function(event) {
-            const modal = document.getElementById('addModal');
-            if (event.target === modal) {
-                closeModal();
-            }
         }
         
         // ==========================================
-        // AUTO REFRESH
+        // RESET SETTINGS
         // ==========================================
-        setInterval(() => {
-            const activePage = document.querySelector('.page.active');
-            if (activePage) {
-                const id = activePage.id;
-                if (id === 'page-dashboard') {
-                    loadStats();
-                    loadDashboard();
-                    loadSubjectBreakdown();
+        function resetSettings() {
+            if (!confirm('Are you sure you want to reset all settings to default?')) return;
+            
+            const messageEl = document.getElementById('settingsMessage');
+            
+            messageEl.innerHTML = `
+                <div class="info-message">
+                    <i class="fas fa-spinner fa-spin"></i> Resetting settings...
+                </div>
+            `;
+            
+            fetch('/api/settings/reset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    messageEl.innerHTML = `
+                        <div class="success-message">
+                            <i class="fas fa-check-circle"></i> Settings reset to default!
+                        </div>
+                    `;
+                    loadSettings();
+                } else {
+                    messageEl.innerHTML = `
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i> ${data.error || 'Failed to reset settings'}
+                        </div>
+                    `;
                 }
+                setTimeout(() => messageEl.innerHTML = '', 3000);
+            })
+            .catch(error => {
+                messageEl.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle"></i> Error resetting settings
+                    </div>
+                `;
+            });
+        }
+        
+        // ==========================================
+        // CLEAR ALL DATA
+        // ==========================================
+        function clearAllData() {
+            if (!confirm('DANGER: This will delete ALL your study sessions! This cannot be undone! Are you sure?')) return;
+            if (!confirm('Final confirmation: Are you absolutely sure?')) return;
+            
+            const messageEl = document.getElementById('settingsMessage');
+            
+            messageEl.innerHTML = `
+                <div class="info-message">
+                    <i class="fas fa-spinner fa-spin"></i> Clearing all data...
+                </div>
+            `;
+            
+            fetch('/api/clear?confirm=true', {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    messageEl.innerHTML = `
+                        <div class="success-message">
+                            <i class="fas fa-check-circle"></i> All data cleared successfully!
+                        </div>
+                    `;
+                } else {
+                    messageEl.innerHTML = `
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i> ${data.error || 'Failed to clear data'}
+                        </div>
+                    `;
+                }
+                setTimeout(() => messageEl.innerHTML = '', 3000);
+            })
+            .catch(error => {
+                messageEl.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle"></i> Error clearing data
+                    </div>
+                `;
+            });
+        }
+        
+        // ==========================================
+        // OVERRIDE TOGGLE DARK MODE
+        // ==========================================
+        const originalToggleDarkMode = window.toggleDarkMode;
+        window.toggleDarkMode = function() {
+            if (originalToggleDarkMode) {
+                originalToggleDarkMode();
+            } else {
+                document.body.classList.toggle('dark-mode');
             }
-        }, 30000);
+            
+            const isDark = document.body.classList.contains('dark-mode');
+            const theme = isDark ? 'dark' : 'light';
+            
+            fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ theme: theme })
+            }).catch(err => console.error('Error saving theme:', err));
+        };
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            if (document.getElementById('page-settings')?.classList.contains('active')) {
+                loadSettings();
+            }
+        });
     </script>
+    
+    <style>
+        /* ==========================================
+        SETTINGS PAGE STYLES - PREMIUM
+        ========================================== */
+        
+        /* Settings Sections */
+        .settings-section {
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+        }
+        
+        .settings-section:last-of-type {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        body.dark-mode .settings-section {
+            border-bottom-color: rgba(255,255,255,0.06);
+        }
+        
+        .settings-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        body.dark-mode .settings-section-title {
+            color: #E8E8F0;
+        }
+        
+        .settings-section-title i {
+            color: #6C5CE7;
+            font-size: 16px;
+            width: 24px;
+            text-align: center;
+        }
+        
+        /* Settings Grid */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        
+        .settings-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .settings-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4A4A6A;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+        
+        body.dark-mode .settings-group label {
+            color: #B0B0CC;
+        }
+        
+        .settings-group label i {
+            color: #6C5CE7;
+            margin-right: 4px;
+        }
+        
+        .settings-group .help-text {
+            font-size: 11px;
+            color: #B0B0C8;
+            margin-top: 2px;
+        }
+        
+        body.dark-mode .settings-group .help-text {
+            color: #8080A0;
+        }
+        
+        .settings-input {
+            padding: 10px 14px;
+            border: 2px solid #E8E8F0;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            background: #FAFAFE;
+            color: #2D3436;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        
+        body.dark-mode .settings-input {
+            background: #2D2D44;
+            border-color: #4D4D64;
+            color: #E8E8F0;
+        }
+        
+        .settings-input:focus {
+            outline: none;
+            border-color: #6C5CE7;
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.12);
+        }
+        
+        select.settings-input {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236C5CE7' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            cursor: pointer;
+            padding-right: 36px;
+        }
+        
+        /* Toggle Switches */
+        .settings-toggles {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            background: #F8F8FC;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        
+        body.dark-mode .toggle-group {
+            background: #2D2D44;
+        }
+        
+        .toggle-group:hover {
+            background: #F0F0F8;
+            border-color: rgba(108, 99, 255, 0.1);
+        }
+        
+        body.dark-mode .toggle-group:hover {
+            background: #3D3D54;
+        }
+        
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: #4A4A6A;
+        }
+        
+        body.dark-mode .toggle-label {
+            color: #C0C0D8;
+        }
+        
+        .toggle-label span:first-child {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .toggle-label span:first-child i {
+            font-size: 14px;
+            color: #6C5CE7;
+            width: 18px;
+            text-align: center;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: #D1D1E0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+        
+        body.dark-mode .toggle-switch {
+            background: #4D4D64;
+        }
+        
+        .toggle-switch.active {
+            background: #6C5CE7;
+        }
+        
+        .toggle-switch.active {
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15);
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+        
+        .toggle-switch.active .toggle-slider {
+            left: 22px;
+        }
+        
+        /* Danger Zone */
+        .danger-zone {
+            background: #FFF8F8 !important;
+            border: 2px solid #FDE8E8 !important;
+            border-radius: 12px !important;
+            padding: 16px 20px !important;
+            margin-top: 8px;
+        }
+        
+        body.dark-mode .danger-zone {
+            background: #2A1A1A !important;
+            border-color: #5A2A2A !important;
+        }
+        
+        .danger-title {
+            color: #E74C3C !important;
+        }
+        
+        .danger-title i {
+            color: #E74C3C !important;
+        }
+        
+        .btn-danger {
+            background: #E74C3C;
+            color: white;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-danger:hover {
+            background: #C0392B;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+        }
+        
+        .danger-text {
+            font-size: 12px;
+            color: #E74C3C;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        body.dark-mode .danger-text {
+            color: #F06A6A;
+        }
+        
+        /* Settings Actions */
+        .settings-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .settings-actions .btn {
+            padding: 10px 22px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #6C63FF, #8B83FF);
+            color: white;
+            box-shadow: 0 4px 12px rgba(108, 99, 255, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(108, 99, 255, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(108, 99, 255, 0.08);
+            color: #6C63FF;
+            border: 1px solid rgba(108, 99, 255, 0.12);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(108, 99, 255, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        body.dark-mode .btn-secondary {
+            background: rgba(108, 99, 255, 0.12);
+            color: #8B83FF;
+            border-color: rgba(108, 99, 255, 0.15);
+        }
+        
+        body.dark-mode .btn-secondary:hover {
+            background: rgba(108, 99, 255, 0.2);
+        }
+        
+        /* Messages */
+        .settings-message {
+            margin-top: 16px;
+        }
+        
+        .success-message,
+        .error-message,
+        .info-message {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            animation: slideDown 0.3s ease;
+            border: 1px solid;
+        }
+        
+        .success-message {
+            background: #E8F8E8;
+            color: #1A7A3A;
+            border-color: #B8E8B8;
+        }
+        
+        .success-message i {
+            color: #2ECC71;
+            font-size: 16px;
+        }
+        
+        body.dark-mode .success-message {
+            background: #1A3A1A;
+            color: #6CD88C;
+            border-color: #2A5A2A;
+        }
+        
+        body.dark-mode .success-message i {
+            color: #6CD88C;
+        }
+        
+        .error-message {
+            background: #FDE8E8;
+            color: #8A1A1A;
+            border-color: #F5C8C8;
+        }
+        
+        .error-message i {
+            color: #E74C3C;
+            font-size: 16px;
+        }
+        
+        body.dark-mode .error-message {
+            background: #3A1A1A;
+            color: #F06A6A;
+            border-color: #5A2A2A;
+        }
+        
+        body.dark-mode .error-message i {
+            color: #F06A6A;
+        }
+        
+        .info-message {
+            background: #E8F0FE;
+            color: #1A3A6A;
+            border-color: #C8D8F5;
+        }
+        
+        .info-message i {
+            color: #3498DB;
+            font-size: 16px;
+        }
+        
+        body.dark-mode .info-message {
+            background: #1A2A4A;
+            color: #8AB4F0;
+            border-color: #2A4A6A;
+        }
+        
+        body.dark-mode .info-message i {
+            color: #8AB4F0;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+            .settings-toggles {
+                grid-template-columns: 1fr;
+            }
+            .settings-actions {
+                flex-direction: column;
+            }
+            .settings-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            .settings-section-title {
+                font-size: 13px;
+            }
+        }
+    </style>
 </body>
 </html>
