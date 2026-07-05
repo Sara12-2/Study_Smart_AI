@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚙️ Settings - Smart Study System</title>
+    <title>Settings - StudySmart AI</title>
     
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -11,662 +11,893 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    
     <style>
         /* ==========================================
-           SETTINGS PAGE - PREMIUM STYLES
+           SETTINGS PAGE - PREMIUM DESIGN
            ========================================== */
         
-        .settings-container {
-            max-width: 800px;
-            margin: 0 auto;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         
-        .settings-section {
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(10px);
-            border-radius: var(--radius-premium);
-            padding: 24px;
-            margin-bottom: 24px;
-            box-shadow: var(--shadow-premium);
-            border: 1px solid rgba(255,255,255,0.2);
-            transition: var(--transition-premium);
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            transition: background 0.4s ease;
         }
         
-        .settings-section:hover {
-            box-shadow: var(--shadow-hover);
-            transform: translateY(-2px);
+        body.dark-mode {
+            background: #0f0f1a;
         }
         
-        body.dark-mode .settings-section {
-            background: #2d2d44;
-            border-color: #3d3d54;
+        /* ==========================================
+           HEADER
+           ========================================== */
+        .settings-header {
+            text-align: center;
+            padding: 40px 20px 32px;
+            position: relative;
         }
         
-        .settings-section h3 {
-            margin-bottom: 16px;
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--dark);
+        .settings-header .header-icon {
+            width: 72px;
+            height: 72px;
+            background: linear-gradient(135deg, #6C63FF, #8B83FF);
+            border-radius: 24px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
+            font-size: 32px;
+            color: white;
+            margin: 0 auto 16px;
+            box-shadow: 0 12px 40px rgba(108, 99, 255, 0.35);
+            transition: all 0.4s ease;
         }
         
-        body.dark-mode .settings-section h3 {
+        .settings-header .header-icon:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 16px 48px rgba(108, 99, 255, 0.45);
+        }
+        
+        .settings-header h1 {
+            font-size: 32px;
+            font-weight: 800;
+            color: #1a1a2e;
+            letter-spacing: -0.5px;
+        }
+        
+        body.dark-mode .settings-header h1 {
             color: #ffffff;
         }
         
-        .settings-section h3 i {
-            color: var(--primary);
-        }
-        
-        .settings-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 14px 0;
-            border-bottom: 1px solid rgba(0,0,0,0.06);
-            transition: var(--transition-premium);
-        }
-        
-        body.dark-mode .settings-item {
-            border-color: #3d3d54;
-        }
-        
-        .settings-item:last-child {
-            border-bottom: none;
-        }
-        
-        .settings-item:hover {
-            padding-left: 8px;
-            padding-right: 8px;
-            background: rgba(108,99,255,0.03);
-            border-radius: 8px;
-            margin: 0 -8px;
-        }
-        
-        body.dark-mode .settings-item:hover {
-            background: rgba(108,99,255,0.08);
-        }
-        
-        .settings-item .label {
-            font-weight: 500;
-            color: var(--dark);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        body.dark-mode .settings-item .label {
-            color: #e0e0e0;
-        }
-        
-        .settings-item .label i {
-            color: var(--primary);
-            width: 20px;
-            text-align: center;
-        }
-        
-        .settings-item .value {
+        .settings-header p {
             color: #95A5A6;
-            font-size: 14px;
-            font-weight: 500;
+            font-size: 16px;
+            margin-top: 6px;
+            font-weight: 400;
         }
         
-        body.dark-mode .settings-item .value {
-            color: #95A5A6;
+        .settings-header .header-badge {
+            display: inline-block;
+            background: rgba(108, 99, 255, 0.12);
+            color: #6C63FF;
+            padding: 4px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 10px;
+            letter-spacing: 0.5px;
         }
         
-        .settings-item .value.status-online {
-            color: var(--success);
-        }
-        
-        .settings-item .value.status-offline {
-            color: var(--danger);
+        body.dark-mode .settings-header .header-badge {
+            background: rgba(108, 99, 255, 0.2);
         }
         
         /* ==========================================
-           TOGGLE SWITCH - Premium
+           CONTAINER
            ========================================== */
-        .toggle-switch {
-            position: relative;
-            width: 52px;
-            height: 28px;
-            display: inline-block;
-            flex-shrink: 0;
+        .settings-container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 24px 48px;
         }
         
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
+        /* ==========================================
+           SETTINGS CARD
+           ========================================== */
+        .settings-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 28px 32px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            margin-bottom: 20px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
-        .toggle-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: #ccc;
-            transition: 0.3s;
-            border-radius: 28px;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        body.dark-mode .settings-card {
+            background: rgba(45, 45, 68, 0.95);
+            border-color: rgba(255, 255, 255, 0.06);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
         }
         
-        .toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 20px;
-            width: 20px;
-            left: 4px;
-            bottom: 4px;
-            background: white;
-            transition: 0.3s;
-            border-radius: 50%;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        .settings-card:hover {
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
         }
         
-        .toggle-switch input:checked + .toggle-slider {
-            background: var(--primary-gradient);
+        body.dark-mode .settings-card:hover {
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
         }
         
-        .toggle-switch input:checked + .toggle-slider:before {
-            transform: translateX(24px);
+        .settings-card .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: -0.3px;
         }
         
-        .toggle-switch input:disabled + .toggle-slider {
+        body.dark-mode .settings-card .card-title {
+            color: #E8E8F0;
+        }
+        
+        .settings-card .card-title i {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(108, 99, 255, 0.12);
+            border-radius: 10px;
+            color: #6C5CE7;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        body.dark-mode .settings-card .card-title i {
+            background: rgba(108, 99, 255, 0.2);
+        }
+        
+        .settings-card:hover .card-title i {
+            transform: scale(1.05) rotate(-3deg);
+        }
+        
+        /* ==========================================
+           SETTINGS GRID
+           ========================================== */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+        }
+        
+        .settings-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .settings-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #4A4A6A;
+            letter-spacing: 0.3px;
+        }
+        
+        body.dark-mode .settings-group label {
+            color: #B0B0CC;
+        }
+        
+        .settings-group .help-text {
+            font-size: 11px;
+            color: #B0B0C8;
+            margin-top: 2px;
+            font-weight: 400;
+        }
+        
+        body.dark-mode .settings-group .help-text {
+            color: #8080A0;
+        }
+        
+        /* ==========================================
+           INPUTS - Premium
+           ========================================== */
+        .settings-input {
+            padding: 12px 16px;
+            border: 2px solid #E8E8F0;
+            border-radius: 12px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            background: #FAFAFE;
+            color: #2D3436;
+            transition: all 0.3s ease;
+            width: 100%;
+            font-weight: 500;
+        }
+        
+        body.dark-mode .settings-input {
+            background: #2D2D44;
+            border-color: #4D4D64;
+            color: #E8E8F0;
+        }
+        
+        .settings-input:hover {
+            border-color: #C0C0D8;
+        }
+        
+        .settings-input:focus {
+            outline: none;
+            border-color: #6C5CE7;
+            box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.12);
+            transform: translateY(-1px);
+        }
+        
+        body.dark-mode .settings-input:focus {
+            box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.2);
+        }
+        
+        .settings-input:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
         
+        select.settings-input {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236C5CE7' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            cursor: pointer;
+            padding-right: 40px;
+        }
+        
+        input[type="number"].settings-input {
+            -moz-appearance: textfield;
+        }
+        
+        input[type="number"].settings-input::-webkit-outer-spin-button,
+        input[type="number"].settings-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        
         /* ==========================================
-           BUTTONS - Premium
+           TOGGLE SWITCHES - Premium
            ========================================== */
-        .btn-danger {
-            background: linear-gradient(135deg, #E74C3C, #C0392B);
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 10px;
+        .settings-toggles {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            background: #F8F8FC;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        
+        body.dark-mode .toggle-group {
+            background: #2D2D44;
+        }
+        
+        .toggle-group:hover {
+            background: #F0F0F8;
+            border-color: rgba(108, 99, 255, 0.15);
+        }
+        
+        body.dark-mode .toggle-group:hover {
+            background: #3D3D54;
+            border-color: rgba(108, 99, 255, 0.15);
+        }
+        
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
             cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #4A4A6A;
+        }
+        
+        body.dark-mode .toggle-label {
+            color: #C0C0D8;
+        }
+        
+        .toggle-label span:first-child {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .toggle-label span:first-child i {
+            font-size: 15px;
+            color: #6C5CE7;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            background: #D1D1E0;
+            border-radius: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.08);
+        }
+        
+        body.dark-mode .toggle-switch {
+            background: #4D4D64;
+        }
+        
+        .toggle-switch.active {
+            background: #6C5CE7;
+            box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.15);
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        
+        .toggle-switch.active .toggle-slider {
+            left: 25px;
+            background: white;
+        }
+        
+        /* ==========================================
+           ACTIONS
+           ========================================== */
+        .settings-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .settings-actions .btn {
+            padding: 12px 28px;
+            font-size: 14px;
             font-weight: 600;
-            font-size: 13px;
-            transition: var(--transition-premium);
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             font-family: 'Inter', sans-serif;
         }
         
-        .btn-danger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 20px rgba(231,76,60,0.3);
-        }
-        
-        .btn-danger:active {
-            transform: scale(0.95);
-        }
-        
-        .btn-danger i {
-            font-size: 14px;
-        }
-        
-        .btn-success {
-            background: linear-gradient(135deg, #2ECC71, #27AE60);
+        .btn-primary {
+            background: linear-gradient(135deg, #6C63FF, #8B83FF);
             color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 13px;
-            transition: var(--transition-premium);
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-family: 'Inter', sans-serif;
+            box-shadow: 0 4px 16px rgba(108, 99, 255, 0.3);
         }
         
-        .btn-success:hover {
+        .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 20px rgba(46,204,113,0.3);
+            box-shadow: 0 8px 32px rgba(108, 99, 255, 0.4);
         }
         
-        .btn-success:active {
-            transform: scale(0.95);
-        }
-        
-        .btn-success i {
-            font-size: 14px;
+        .btn-primary:active {
+            transform: translateY(0);
         }
         
         .btn-secondary {
-            background: rgba(108,99,255,0.1);
-            color: var(--primary);
-            padding: 10px 20px;
-            border: 1px solid rgba(108,99,255,0.2);
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 13px;
-            transition: var(--transition-premium);
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-family: 'Inter', sans-serif;
+            background: rgba(108, 99, 255, 0.08);
+            color: #6C63FF;
+            border: 1px solid rgba(108, 99, 255, 0.15);
         }
         
         .btn-secondary:hover {
-            background: rgba(108,99,255,0.15);
+            background: rgba(108, 99, 255, 0.15);
             transform: translateY(-2px);
         }
         
         body.dark-mode .btn-secondary {
-            background: rgba(108,99,255,0.2);
-            border-color: rgba(108,99,255,0.3);
-            color: var(--primary-light);
+            background: rgba(108, 99, 255, 0.15);
+            color: #8B83FF;
+            border-color: rgba(108, 99, 255, 0.2);
         }
         
         body.dark-mode .btn-secondary:hover {
-            background: rgba(108,99,255,0.3);
+            background: rgba(108, 99, 255, 0.25);
         }
         
         /* ==========================================
-           BACKUP LIST
+           MESSAGES - Theme Aware
            ========================================== */
-        .backup-list {
-            max-height: 200px;
-            overflow-y: auto;
-            margin-top: 8px;
+        .settings-message {
+            margin-top: 20px;
         }
         
-        .backup-list::-webkit-scrollbar {
-            width: 4px;
-        }
-        
-        .backup-list::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        
-        .backup-list::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 10px;
-        }
-        
-        .backup-item {
+        .success-message,
+        .error-message,
+        .info-message {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 10px 14px;
-            background: rgba(0,0,0,0.03);
-            border-radius: 10px;
-            margin-bottom: 8px;
-            transition: var(--transition-premium);
-        }
-        
-        body.dark-mode .backup-item {
-            background: rgba(255,255,255,0.05);
-        }
-        
-        .backup-item:hover {
-            background: rgba(108,99,255,0.06);
-            transform: translateX(4px);
-        }
-        
-        body.dark-mode .backup-item:hover {
-            background: rgba(108,99,255,0.12);
-        }
-        
-        .backup-item .name {
-            font-size: 13px;
+            gap: 12px;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 14px;
             font-weight: 500;
-            color: var(--dark);
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            animation: slideDown 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid;
         }
         
-        body.dark-mode .backup-item .name {
-            color: #e0e0e0;
+        .success-message {
+            background: #E8F8E8;
+            color: #1A7A3A;
+            border-color: #B8E8B8;
         }
         
-        .backup-item .name i {
-            color: var(--primary);
+        .success-message i {
+            color: #2ECC71;
+            font-size: 18px;
         }
         
-        .backup-item .size {
-            font-size: 12px;
-            color: #95A5A6;
+        body.dark-mode .success-message {
+            background: #1A3A1A;
+            color: #6CD88C;
+            border-color: #2A5A2A;
         }
         
-        .backup-item .date {
-            font-size: 12px;
-            color: #95A5A6;
+        body.dark-mode .success-message i {
+            color: #6CD88C;
+        }
+        
+        .error-message {
+            background: #FDE8E8;
+            color: #8A1A1A;
+            border-color: #F5C8C8;
+        }
+        
+        .error-message i {
+            color: #E74C3C;
+            font-size: 18px;
+        }
+        
+        body.dark-mode .error-message {
+            background: #3A1A1A;
+            color: #F06A6A;
+            border-color: #5A2A2A;
+        }
+        
+        body.dark-mode .error-message i {
+            color: #F06A6A;
+        }
+        
+        .info-message {
+            background: #E8F0FE;
+            color: #1A3A6A;
+            border-color: #C8D8F5;
+        }
+        
+        .info-message i {
+            color: #3498DB;
+            font-size: 18px;
+        }
+        
+        body.dark-mode .info-message {
+            background: #1A2A4A;
+            color: #8AB4F0;
+            border-color: #2A4A6A;
+        }
+        
+        body.dark-mode .info-message i {
+            color: #8AB4F0;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         
         /* ==========================================
            DANGER ZONE
            ========================================== */
-        .settings-section.danger-zone {
-            border: 2px solid rgba(231,76,60,0.3);
-            background: rgba(231,76,60,0.03);
+        .danger-zone {
+            border: 2px solid #FDE8E8 !important;
+            background: #FFF8F8 !important;
         }
         
-        body.dark-mode .settings-section.danger-zone {
-            background: rgba(231,76,60,0.08);
-            border-color: rgba(231,76,60,0.3);
+        body.dark-mode .danger-zone {
+            border-color: #5A2A2A !important;
+            background: #2A1A1A !important;
         }
         
-        .settings-section.danger-zone h3 {
-            color: #E74C3C;
+        .danger-zone .card-title {
+            color: #E74C3C !important;
         }
         
-        .settings-section.danger-zone h3 i {
-            color: #E74C3C;
+        .danger-zone .card-title i {
+            background: rgba(231, 76, 60, 0.15) !important;
+            color: #E74C3C !important;
         }
         
-        /* ==========================================
-           SELECT DROPDOWN
-           ========================================== */
-        .settings-item .restore-controls {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            align-items: flex-end;
+        body.dark-mode .danger-zone .card-title i {
+            background: rgba(231, 76, 60, 0.25) !important;
         }
         
-        .settings-item select {
-            padding: 8px 14px;
-            border: 2px solid #e8ecf1;
+        .btn-danger {
+            background: #E74C3C;
+            color: white;
+            border: none;
+            padding: 10px 20px;
             border-radius: 10px;
-            font-size: 13px;
+            font-size: 14px;
+            font-weight: 600;
             font-family: 'Inter', sans-serif;
-            background: white;
-            transition: var(--transition-premium);
-            min-width: 200px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
         
-        body.dark-mode .settings-item select {
-            background: #1a1a2e;
-            border-color: #3d3d54;
-            color: #e0e0e0;
+        .btn-danger:hover {
+            background: #C0392B;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(231, 76, 60, 0.35);
         }
         
-        .settings-item select:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(108,99,255,0.1);
+        .danger-text {
+            font-size: 12px;
+            color: #E74C3C;
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        body.dark-mode .danger-text {
+            color: #F06A6A;
+        }
+        
+        .danger-text i {
+            font-size: 14px;
         }
         
         /* ==========================================
            RESPONSIVE
            ========================================== */
         @media (max-width: 768px) {
-            .settings-container {
-                padding: 0 8px;
+            .settings-card {
+                padding: 20px 16px;
             }
             
-            .settings-item {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .settings-toggles {
+                grid-template-columns: 1fr;
+            }
+            
+            .settings-header h1 {
+                font-size: 24px;
+            }
+            
+            .settings-actions {
                 flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
-                padding: 14px 0;
             }
             
-            .settings-item:hover {
-                padding-left: 4px;
-                padding-right: 4px;
-                margin: 0 -4px;
-            }
-            
-            .settings-item .restore-controls {
-                width: 100%;
-                align-items: stretch;
-            }
-            
-            .settings-item select {
-                width: 100%;
-                min-width: unset;
-            }
-            
-            .settings-item .btn-success,
-            .settings-item .btn-danger {
+            .settings-actions .btn {
                 width: 100%;
                 justify-content: center;
+            }
+            
+            .settings-header .header-icon {
+                width: 56px;
+                height: 56px;
+                font-size: 24px;
             }
         }
         
         @media (max-width: 480px) {
-            .settings-section {
-                padding: 16px;
+            .settings-card {
+                padding: 16px 14px;
+                border-radius: 16px;
             }
             
-            .settings-item .label {
-                font-size: 14px;
-            }
-            
-            .settings-item .value {
+            .settings-input {
                 font-size: 13px;
+                padding: 10px 14px;
             }
+            
+            .settings-header h1 {
+                font-size: 20px;
+            }
+        }
+        
+        /* ==========================================
+           DARK MODE - OVERRIDES
+           ========================================== */
+        body.dark-mode .settings-card .card-title i.fa-palette {
+            color: #a29bfe;
+        }
+        
+        body.dark-mode .settings-card .card-title i.fa-bullseye {
+            color: #a29bfe;
+        }
+        
+        body.dark-mode .settings-card .card-title i.fa-sliders-h {
+            color: #a29bfe;
+        }
+        
+        body.dark-mode .settings-card .card-title i.fa-toggle-on {
+            color: #a29bfe;
+        }
+        
+        body.dark-mode .settings-card .card-title i.fa-exclamation-triangle {
+            color: #F06A6A;
         }
     </style>
 </head>
 <body>
-    <div class="app-container">
+    <div class="settings-container">
         <!-- ==========================================
-        SIDEBAR - Premium
+        HEADER
         ========================================== -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo">
-                    <div class="logo-icon">
-                        <i class="fas fa-brain"></i>
-                    </div>
-                    <div>
-                        <h2>StudySmart</h2>
-                        <div class="subtitle">AI-Powered Learning</div>
-                    </div>
-                </div>
+        <div class="settings-header">
+            <div class="header-icon">
+                <i class="fas fa-cog"></i>
             </div>
-            
-            <nav class="sidebar-nav">
-                <div class="nav-label">Main</div>
-                
-                <a href="/" class="nav-item">
-                    <i class="fas fa-chart-pie"></i>
-                    <span>Dashboard</span>
-                </a>
-                
-                <a href="/sessions" class="nav-item">
-                    <i class="fas fa-book-open"></i>
-                    <span>Sessions</span>
-                    <span class="badge" id="sessionBadge">0</span>
-                </a>
-                
-                <a href="#" class="nav-item" onclick="alert('Coming soon!')">
-                    <i class="fas fa-layer-group"></i>
-                    <span>Subjects</span>
-                </a>
-                
-                <div class="nav-label" style="margin-top:12px;">Intelligence</div>
-                
-                <a href="#" class="nav-item" onclick="alert('Coming soon!')">
-                    <i class="fas fa-robot"></i>
-                    <span>AI Insights</span>
-                </a>
-                
-                <a href="#" class="nav-item active">
-                    <i class="fas fa-cog"></i>
-                    <span>Settings</span>
-                </a>
-                
-                <div class="nav-item" onclick="toggleDarkMode()" style="margin-top:12px; cursor:pointer;">
-                    <i class="fas fa-moon"></i>
-                    <span>Dark Mode</span>
-                </div>
-            </nav>
-            
-            <div class="sidebar-footer">
-                <div class="stats-mini">
-                    <i class="fas fa-database"></i>
-                    <span id="totalSessions">0</span> sessions
-                </div>
-            </div>
-        </aside>
+            <h1>Settings</h1>
+            <p>Customize your StudySmart AI experience</p>
+            <span class="header-badge">
+                <i class="fas fa-version-tag" style="margin-right: 6px;"></i> v1.0.0
+            </span>
+        </div>
         
         <!-- ==========================================
-        MAIN CONTENT
+        SETTINGS FORM
         ========================================== -->
-        <main class="main-content">
-            <!-- Top Bar -->
-            <header class="top-bar">
-                <div class="search-area">
-                    <h1><i class="fas fa-cog"></i> Settings</h1>
-                </div>
-                <div class="user-area">
-                    <span class="date-display" id="currentDate">
-                        <i class="far fa-calendar-alt"></i>
-                    </span>
-                </div>
-            </header>
+        <form id="settingsForm" onsubmit="saveSettings(event)">
             
-            <!-- Content -->
-            <div class="content-area settings-container">
-                <!-- ==========================================
-                GENERAL SETTINGS
-                ========================================== -->
-                <div class="settings-section">
-                    <h3><i class="fas fa-sliders-h"></i> General Settings</h3>
-                    
-                    <div class="settings-item">
-                        <span class="label"><i class="fas fa-tag"></i> App Name</span>
-                        <span class="value">Smart Study System v1.0</span>
+            <!-- ==========================================
+            SECTION 1: Appearance
+            ========================================== -->
+            <div class="settings-card">
+                <div class="card-title">
+                    <i class="fas fa-palette"></i>
+                    <span>Appearance</span>
+                </div>
+                <div class="settings-grid">
+                    <div class="settings-group">
+                        <label for="settingTheme">
+                            <i class="fas fa-moon" style="margin-right: 6px; color: #6C5CE7;"></i> Theme
+                        </label>
+                        <select id="settingTheme" class="settings-input">
+                            <option value="light"><i class="fas fa-sun"></i> Light</option>
+                            <option value="dark"><i class="fas fa-moon"></i> Dark</option>
+                            <option value="auto"><i class="fas fa-sync-alt"></i> Auto (System)</option>
+                        </select>
                     </div>
                     
-                    <div class="settings-item">
-                        <span class="label"><i class="fas fa-layer-group"></i> Total Sessions</span>
-                        <span class="value" id="totalSessionsValue">0</span>
-                    </div>
-                    
-                    <div class="settings-item">
-                        <span class="label"><i class="fas fa-database"></i> Data Storage</span>
-                        <span class="value">JSON (data/sessions.json)</span>
-                    </div>
-                    
-                    <div class="settings-item">
-                        <span class="label"><i class="fas fa-hdd"></i> File Size</span>
-                        <span class="value" id="fileSizeValue">0 B</span>
-                    </div>
-                    
-                    <div class="settings-item">
-                        <span class="label"><i class="fas fa-clock"></i> Last Updated</span>
-                        <span class="value" id="lastUpdated">-</span>
+                    <div class="settings-group">
+                        <label for="settingLanguage">
+                            <i class="fas fa-globe" style="margin-right: 6px; color: #6C5CE7;"></i> Language
+                        </label>
+                        <select id="settingLanguage" class="settings-input">
+                            <option value="en"><i class="fas fa-flag"></i> English</option>
+                            <option value="ur"><i class="fas fa-flag"></i> Urdu</option>
+                            <option value="hi"><i class="fas fa-flag"></i> Hindi</option>
+                        </select>
                     </div>
                 </div>
-                
-                <!-- ==========================================
-                APPEARANCE
-                ========================================== -->
-                <div class="settings-section">
-                    <h3><i class="fas fa-palette"></i> Appearance</h3>
+            </div>
+            
+            <!-- ==========================================
+            SECTION 2: Study Goals
+            ========================================== -->
+            <div class="settings-card">
+                <div class="card-title">
+                    <i class="fas fa-bullseye"></i>
+                    <span>Study Goals</span>
+                </div>
+                <div class="settings-grid">
+                    <div class="settings-group">
+                        <label for="settingDailyGoal">
+                            <i class="fas fa-calendar-day" style="margin-right: 6px; color: #6C5CE7;"></i> Daily Goal (minutes)
+                        </label>
+                        <input type="number" id="settingDailyGoal" class="settings-input" 
+                               min="30" max="480" step="10" value="120">
+                        <span class="help-text"><i class="fas fa-info-circle"></i> Recommended: 120 minutes (2 hours)</span>
+                    </div>
                     
-                    <div class="settings-item">
-                        <span class="label"><i class="fas fa-moon"></i> Dark Mode</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="darkModeToggle" onchange="toggleDarkModeSetting()">
-                            <span class="toggle-slider"></span>
+                    <div class="settings-group">
+                        <label for="settingWeeklyGoal">
+                            <i class="fas fa-calendar-week" style="margin-right: 6px; color: #6C5CE7;"></i> Weekly Goal (minutes)
+                        </label>
+                        <input type="number" id="settingWeeklyGoal" class="settings-input" 
+                               min="120" max="1680" step="30" value="600">
+                        <span class="help-text"><i class="fas fa-info-circle"></i> Recommended: 600 minutes (10 hours)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ==========================================
+            SECTION 3: Preferences
+            ========================================== -->
+            <div class="settings-card">
+                <div class="card-title">
+                    <i class="fas fa-sliders-h"></i>
+                    <span>Preferences</span>
+                </div>
+                <div class="settings-grid">
+                    <div class="settings-group">
+                        <label for="settingDefaultSubject">
+                            <i class="fas fa-book" style="margin-right: 6px; color: #6C5CE7;"></i> Default Subject
+                        </label>
+                        <input type="text" id="settingDefaultSubject" class="settings-input" 
+                               placeholder="e.g., Python, Math, Physics">
+                        <span class="help-text"><i class="fas fa-info-circle"></i> Auto-filled when adding new sessions</span>
+                    </div>
+                    
+                    <div class="settings-group">
+                        <label for="settingTimeFormat">
+                            <i class="fas fa-clock" style="margin-right: 6px; color: #6C5CE7;"></i> Time Format
+                        </label>
+                        <select id="settingTimeFormat" class="settings-input">
+                            <option value="12h"><i class="fas fa-clock"></i> 12-hour (AM/PM)</option>
+                            <option value="24h"><i class="fas fa-clock"></i> 24-hour</option>
+                        </select>
+                    </div>
+                    
+                    <div class="settings-group">
+                        <label for="settingReminderInterval">
+                            <i class="fas fa-bell" style="margin-right: 6px; color: #6C5CE7;"></i> Study Reminder Interval
+                        </label>
+                        <select id="settingReminderInterval" class="settings-input">
+                            <option value="15"><i class="fas fa-clock"></i> 15 minutes</option>
+                            <option value="30"><i class="fas fa-clock"></i> 30 minutes</option>
+                            <option value="45"><i class="fas fa-clock"></i> 45 minutes</option>
+                            <option value="60" selected><i class="fas fa-clock"></i> 60 minutes</option>
+                            <option value="90"><i class="fas fa-clock"></i> 90 minutes</option>
+                            <option value="120"><i class="fas fa-clock"></i> 120 minutes</option>
+                        </select>
+                        <span class="help-text"><i class="fas fa-info-circle"></i> How often to remind you to study</span>
+                    </div>
+                    
+                    <div class="settings-group">
+                        <label for="settingBackupInterval">
+                            <i class="fas fa-database" style="margin-right: 6px; color: #6C5CE7;"></i> Auto Backup Interval
+                        </label>
+                        <select id="settingBackupInterval" class="settings-input">
+                            <option value="1"><i class="fas fa-clock"></i> Every day</option>
+                            <option value="3"><i class="fas fa-clock"></i> Every 3 days</option>
+                            <option value="7" selected><i class="fas fa-clock"></i> Every week</option>
+                            <option value="14"><i class="fas fa-clock"></i> Every 2 weeks</option>
+                            <option value="30"><i class="fas fa-clock"></i> Every month</option>
+                        </select>
+                        <span class="help-text"><i class="fas fa-info-circle"></i> Automatically backup your data</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ==========================================
+            SECTION 4: Toggle Options
+            ========================================== -->
+            <div class="settings-card">
+                <div class="card-title">
+                    <i class="fas fa-toggle-on"></i>
+                    <span>Features</span>
+                </div>
+                <div class="settings-toggles">
+                    <div class="toggle-group">
+                        <label class="toggle-label">
+                            <span><i class="fas fa-bell"></i> Notifications</span>
+                            <div class="toggle-switch active" onclick="toggleSwitch(this)">
+                                <input type="hidden" id="settingNotifications" value="true">
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div class="toggle-group">
+                        <label class="toggle-label">
+                            <span><i class="fas fa-clock"></i> Study Reminder</span>
+                            <div class="toggle-switch active" onclick="toggleSwitch(this)">
+                                <input type="hidden" id="settingStudyReminder" value="true">
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div class="toggle-group">
+                        <label class="toggle-label">
+                            <span><i class="fas fa-volume-up"></i> Sound Effects</span>
+                            <div class="toggle-switch active" onclick="toggleSwitch(this)">
+                                <input type="hidden" id="settingSoundEffects" value="true">
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div class="toggle-group">
+                        <label class="toggle-label">
+                            <span><i class="fas fa-database"></i> Auto Backup</span>
+                            <div class="toggle-switch active" onclick="toggleSwitch(this)">
+                                <input type="hidden" id="settingAutoBackup" value="true">
+                                <span class="toggle-slider"></span>
+                            </div>
                         </label>
                     </div>
                 </div>
-                
-                <!-- ==========================================
-                DATA MANAGEMENT
-                ========================================== -->
-                <div class="settings-section">
-                    <h3><i class="fas fa-database"></i> Data Management</h3>
-                    
-                    <div class="settings-item">
-                        <span class="label"><i class="fas fa-archive"></i> Create Backup</span>
-                        <button class="btn-success" onclick="createBackup()">
-                            <i class="fas fa-plus-circle"></i> Create Backup
-                        </button>
-                    </div>
-                    
-                    <div class="settings-item">
-                        <span class="label"><i class="fas fa-undo"></i> Restore from Backup</span>
-                        <div class="restore-controls">
-                            <select id="backupSelect">
-                                <option value="">Select backup...</option>
-                            </select>
-                            <button class="btn-success" onclick="restoreBackup()">
-                                <i class="fas fa-undo"></i> Restore
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="settings-item" style="flex-direction:column;align-items:stretch;gap:8px;border-bottom:none;padding-bottom:4px;">
-                        <span class="label"><i class="fas fa-list"></i> Available Backups</span>
-                        <div class="backup-list" id="backupList">
-                            <div style="text-align:center;color:#95A5A6;font-size:13px;padding:20px 0;">
-                                <i class="fas fa-spinner fa-spin"></i> Loading backups...
-                            </div>
-                        </div>
-                    </div>
+            </div>
+            
+            <!-- ==========================================
+            SECTION 5: Danger Zone
+            ========================================== -->
+            <div class="settings-card danger-zone">
+                <div class="card-title">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Danger Zone</span>
                 </div>
-                
-                <!-- ==========================================
-                DANGER ZONE
-                ========================================== -->
-                <div class="settings-section danger-zone">
-                    <h3><i class="fas fa-exclamation-triangle"></i> Danger Zone</h3>
-                    
-                    <div class="settings-item">
-                        <span class="label"><i class="fas fa-trash-alt"></i> Clear All Sessions</span>
-                        <button class="btn-danger" onclick="clearAllSessions()">
-                            <i class="fas fa-trash-alt"></i> Clear All Data
-                        </button>
-                    </div>
-                    
-                    <div class="settings-item" style="border-bottom:none;padding-bottom:4px;">
-                        <span class="label"><i class="fas fa-sync-alt"></i> Reset Statistics</span>
-                        <button class="btn-danger" onclick="resetStats()">
-                            <i class="fas fa-sync-alt"></i> Reset Stats
-                        </button>
-                    </div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                    <button type="button" class="btn-danger" onclick="clearAllData()">
+                        <i class="fas fa-trash"></i> Clear All Data
+                    </button>
+                    <button type="button" class="btn-danger" onclick="resetSettings()">
+                        <i class="fas fa-undo-alt"></i> Reset Settings
+                    </button>
                 </div>
-                
-                <!-- ==========================================
-                ABOUT
-                ========================================== -->
-                <div class="settings-section">
-                    <h3><i class="fas fa-info-circle"></i> About</h3>
-                    
-                    <div class="settings-item">
-                        <span class="label"><i class="fas fa-code-branch"></i> Version</span>
-                        <span class="value">1.0.0</span>
-                    </div>
-                    
-                    <div class="settings-item">
-                        <span class="label"><i class="fas fa-code"></i> Built With</span>
-                        <span class="value">Python + Flask + AI</span>
-                    </div>
-                    
-                    <div class="settings-item">
-                        <span class="label"><i class="fas fa-heart" style="color:#FF6584;"></i> Made With</span>
-                        <span class="value">❤️ for Learning</span>
-                    </div>
-                    
-                    <div class="settings-item" style="border-bottom:none;padding-bottom:4px;">
-                        <span class="label"><i class="fas fa-circle"></i> Status</span>
-                        <span class="value status-online">● Running</span>
-                    </div>
+                <div class="danger-text">
+                    <i class="fas fa-info-circle"></i>
+                    <span>These actions cannot be undone!</span>
                 </div>
             </div>
-        </main>
+            
+            <!-- ==========================================
+            ACTIONS
+            ========================================== -->
+            <div class="settings-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Settings
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="loadSettings()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+                <a href="/" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+            
+            <!-- ==========================================
+            MESSAGE CONTAINER
+            ========================================== -->
+            <div id="settingsMessage" class="settings-message"></div>
+        </form>
     </div>
     
     <!-- ==========================================
@@ -674,277 +905,309 @@
     ========================================== -->
     <script>
         // ==========================================
-        // TOAST NOTIFICATIONS
+        // LOAD SETTINGS
         // ==========================================
-        function showToast(message, type = 'success') {
-            let container = document.getElementById('toastContainer');
-            if (!container) {
-                container = document.createElement('div');
-                container.id = 'toastContainer';
-                document.body.appendChild(container);
-            }
+        function loadSettings() {
+            const messageEl = document.getElementById('settingsMessage');
             
-            const colors = {
-                success: '#2ECC71',
-                error: '#E74C3C',
-                warning: '#F39C12',
-                info: '#3498DB'
-            };
-            
-            const icons = {
-                success: 'fa-check-circle',
-                error: 'fa-exclamation-circle',
-                warning: 'fa-exclamation-triangle',
-                info: 'fa-info-circle'
-            };
-            
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.innerHTML = `
-                <i class="fas ${icons[type]}"></i>
-                ${message}
+            messageEl.innerHTML = `
+                <div class="info-message">
+                    <i class="fas fa-spinner fa-spin"></i> Loading settings...
+                </div>
             `;
             
-            container.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.style.animation = 'slideOut 0.3s ease';
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
-        
-        // ==========================================
-        // DARK MODE
-        // ==========================================
-        function toggleDarkMode() {
-            document.body.classList.toggle('dark-mode');
-            localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
-            document.getElementById('darkModeToggle').checked = document.body.classList.contains('dark-mode');
-            showToast(document.body.classList.contains('dark-mode') ? '🌙 Dark mode enabled' : '☀️ Light mode enabled', 'info');
-        }
-        
-        function toggleDarkModeSetting() {
-            const checked = document.getElementById('darkModeToggle').checked;
-            document.body.classList.toggle('dark-mode', checked);
-            localStorage.setItem('darkMode', checked);
-            showToast(checked ? '🌙 Dark mode enabled' : '☀️ Light mode enabled', 'info');
-        }
-        
-        // Check saved preference
-        if (localStorage.getItem('darkMode') === 'true') {
-            document.body.classList.add('dark-mode');
-            document.getElementById('darkModeToggle').checked = true;
-        }
-        
-        // ==========================================
-        // DATE
-        // ==========================================
-        function updateDate() {
-            const now = new Date();
-            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            document.getElementById('currentDate').innerHTML = `
-                <i class="far fa-calendar-alt"></i> ${now.toLocaleDateString('en-US', options)}
-            `;
-            document.getElementById('lastUpdated').textContent = now.toLocaleString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
-        updateDate();
-        
-        // ==========================================
-        // STATS
-        // ==========================================
-        function loadStats() {
-            fetch('/api/stats')
-                .then(res => res.json())
+            fetch('/api/settings')
+                .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        const sessions = data.data.total_sessions || 0;
-                        document.getElementById('totalSessions').textContent = sessions;
-                        document.getElementById('totalSessionsValue').textContent = sessions;
-                        document.getElementById('fileSizeValue').textContent = data.data.file_size || '0 B';
-                        document.getElementById('sessionBadge').textContent = sessions;
-                    }
-                })
-                .catch(err => console.error('Error:', err));
-        }
-        loadStats();
-        
-        // ==========================================
-        // BACKUPS
-        // ==========================================
-        function loadBackups() {
-            fetch('/api/backup')
-                .then(res => res.json())
-                .then(data => {
-                    const list = document.getElementById('backupList');
-                    const select = document.getElementById('backupSelect');
-                    
-                    if (data.success && data.data && data.data.length > 0) {
-                        list.innerHTML = '';
-                        select.innerHTML = '<option value="">Select backup...</option>';
-                        
-                        data.data.forEach(backup => {
-                            // Add to list
-                            const div = document.createElement('div');
-                            div.className = 'backup-item';
-                            div.innerHTML = `
-                                <span class="name"><i class="fas fa-file-archive"></i> ${backup.name}</span>
-                                <span class="date">${backup.date || new Date(backup.created * 1000).toLocaleString()}</span>
-                            `;
-                            list.appendChild(div);
-                            
-                            // Add to select
-                            const option = document.createElement('option');
-                            option.value = backup.name;
-                            option.textContent = `${backup.name} (${backup.date || new Date(backup.created * 1000).toLocaleDateString()})`;
-                            select.appendChild(option);
-                        });
+                        populateSettings(data.data);
+                        messageEl.innerHTML = `
+                            <div class="success-message">
+                                <i class="fas fa-check-circle"></i> Settings loaded successfully!
+                            </div>
+                        `;
+                        setTimeout(() => messageEl.innerHTML = '', 2000);
                     } else {
-                        list.innerHTML = `
-                            <div style="text-align:center;color:#95A5A6;font-size:13px;padding:20px 0;">
-                                <i class="fas fa-archive" style="font-size:24px;display:block;margin-bottom:8px;"></i>
-                                No backups found
+                        messageEl.innerHTML = `
+                            <div class="error-message">
+                                <i class="fas fa-exclamation-circle"></i> ${data.error || 'Failed to load settings'}
                             </div>
                         `;
                     }
                 })
-                .catch(err => {
-                    console.error('Error loading backups:', err);
-                    document.getElementById('backupList').innerHTML = `
-                        <div style="text-align:center;color:#E74C3C;font-size:13px;padding:20px 0;">
-                            <i class="fas fa-exclamation-circle"></i> Error loading backups
+                .catch(error => {
+                    console.error('Error loading settings:', error);
+                    messageEl.innerHTML = `
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i> Error loading settings. Please try again.
                         </div>
                     `;
                 });
         }
-        loadBackups();
         
         // ==========================================
-        // CREATE BACKUP
+        // POPULATE SETTINGS FORM
         // ==========================================
-        function createBackup() {
-            if (!confirm('📦 Create a backup of your data?')) return;
+        function populateSettings(settings) {
+            const s = settings || {};
             
-            const btn = event.target;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
-            btn.disabled = true;
+            const themeEl = document.getElementById('settingTheme');
+            if (themeEl) themeEl.value = s.theme || 'light';
             
-            fetch('/api/backup', { method: 'POST' })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        showToast('✅ Backup created successfully!', 'success');
-                        loadBackups();
-                        loadStats();
-                    } else {
-                        showToast('❌ Failed to create backup: ' + data.error, 'error');
-                    }
-                })
-                .catch(err => {
-                    showToast('❌ Error: ' + err, 'error');
-                })
-                .finally(() => {
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                });
+            const langEl = document.getElementById('settingLanguage');
+            if (langEl) langEl.value = s.language || 'en';
+            
+            const timeFormatEl = document.getElementById('settingTimeFormat');
+            if (timeFormatEl) timeFormatEl.value = s.time_format || '24h';
+            
+            const dailyGoalEl = document.getElementById('settingDailyGoal');
+            if (dailyGoalEl) dailyGoalEl.value = s.daily_goal || 120;
+            
+            const weeklyGoalEl = document.getElementById('settingWeeklyGoal');
+            if (weeklyGoalEl) weeklyGoalEl.value = s.weekly_goal || 600;
+            
+            const defaultSubjectEl = document.getElementById('settingDefaultSubject');
+            if (defaultSubjectEl) defaultSubjectEl.value = s.default_subject || '';
+            
+            const reminderEl = document.getElementById('settingReminderInterval');
+            if (reminderEl) reminderEl.value = s.reminder_interval || 60;
+            
+            const backupEl = document.getElementById('settingBackupInterval');
+            if (backupEl) backupEl.value = s.backup_interval || 7;
+            
+            setToggleState('settingNotifications', s.notifications !== undefined ? s.notifications : true);
+            setToggleState('settingStudyReminder', s.study_reminder !== undefined ? s.study_reminder : true);
+            setToggleState('settingSoundEffects', s.sound_effects !== undefined ? s.sound_effects : true);
+            setToggleState('settingAutoBackup', s.auto_backup !== undefined ? s.auto_backup : true);
+            
+            applyTheme(s.theme || 'light');
         }
         
         // ==========================================
-        // RESTORE BACKUP
+        // SET TOGGLE STATE
         // ==========================================
-        function restoreBackup() {
-            const select = document.getElementById('backupSelect');
-            const backupName = select.value;
+        function setToggleState(inputId, value) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
             
-            if (!backupName) {
-                showToast('⚠️ Please select a backup file', 'warning');
+            input.value = value;
+            const toggle = input.closest('.toggle-switch');
+            if (toggle) {
+                if (value === true || value === 'true') {
+                    toggle.classList.add('active');
+                } else {
+                    toggle.classList.remove('active');
+                }
+            }
+        }
+        
+        // ==========================================
+        // TOGGLE SWITCH
+        // ==========================================
+        function toggleSwitch(element) {
+            element.classList.toggle('active');
+            const hiddenInput = element.querySelector('input[type="hidden"]');
+            if (hiddenInput) {
+                hiddenInput.value = element.classList.contains('active');
+            }
+        }
+        
+        // ==========================================
+        // APPLY THEME
+        // ==========================================
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                document.body.classList.add('dark-mode');
+            } else if (theme === 'auto') {
+                const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (isDark) {
+                    document.body.classList.add('dark-mode');
+                } else {
+                    document.body.classList.remove('dark-mode');
+                }
+            } else {
+                document.body.classList.remove('dark-mode');
+            }
+        }
+        
+        // ==========================================
+        // SAVE SETTINGS
+        // ==========================================
+        function saveSettings(event) {
+            event.preventDefault();
+            
+            const settings = {
+                theme: document.getElementById('settingTheme')?.value || 'light',
+                language: document.getElementById('settingLanguage')?.value || 'en',
+                time_format: document.getElementById('settingTimeFormat')?.value || '24h',
+                daily_goal: parseInt(document.getElementById('settingDailyGoal')?.value) || 120,
+                weekly_goal: parseInt(document.getElementById('settingWeeklyGoal')?.value) || 600,
+                default_subject: document.getElementById('settingDefaultSubject')?.value || '',
+                reminder_interval: parseInt(document.getElementById('settingReminderInterval')?.value) || 60,
+                backup_interval: parseInt(document.getElementById('settingBackupInterval')?.value) || 7,
+                notifications: document.getElementById('settingNotifications')?.value === 'true',
+                study_reminder: document.getElementById('settingStudyReminder')?.value === 'true',
+                sound_effects: document.getElementById('settingSoundEffects')?.value === 'true',
+                auto_backup: document.getElementById('settingAutoBackup')?.value === 'true'
+            };
+            
+            const messageEl = document.getElementById('settingsMessage');
+            
+            messageEl.innerHTML = `
+                <div class="info-message">
+                    <i class="fas fa-spinner fa-spin"></i> Saving settings...
+                </div>
+            `;
+            
+            fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settings)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    messageEl.innerHTML = `
+                        <div class="success-message">
+                            <i class="fas fa-check-circle"></i> Settings saved successfully!
+                        </div>
+                    `;
+                    applyTheme(settings.theme);
+                    setTimeout(() => messageEl.innerHTML = '', 3000);
+                } else {
+                    messageEl.innerHTML = `
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i> ${data.error || 'Failed to save settings'}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error saving settings:', error);
+                messageEl.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle"></i> Error saving settings. Please try again.
+                    </div>
+                `;
+            });
+        }
+        
+        // ==========================================
+        // RESET SETTINGS
+        // ==========================================
+        function resetSettings() {
+            if (!confirm('⚠️ Are you sure you want to reset ALL settings to default?')) {
                 return;
             }
             
-            if (!confirm(`⚠️ Restore from backup "${backupName}"? This will replace ALL current data!`)) return;
+            const messageEl = document.getElementById('settingsMessage');
             
-            const btn = event.target;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Restoring...';
-            btn.disabled = true;
+            messageEl.innerHTML = `
+                <div class="info-message">
+                    <i class="fas fa-spinner fa-spin"></i> Resetting settings...
+                </div>
+            `;
             
-            fetch(`/api/backup/${backupName}`, { method: 'POST' })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        showToast('✅ Backup restored successfully!', 'success');
-                        loadStats();
-                        loadBackups();
-                    } else {
-                        showToast('❌ Failed to restore backup: ' + data.error, 'error');
+            fetch('/api/settings/reset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    messageEl.innerHTML = `
+                        <div class="success-message">
+                            <i class="fas fa-check-circle"></i> Settings reset to default!
+                        </div>
+                    `;
+                    loadSettings();
+                } else {
+                    messageEl.innerHTML = `
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i> ${data.error || 'Failed to reset settings'}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error resetting settings:', error);
+                messageEl.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle"></i> Error resetting settings.
+                    </div>
+                `;
+            });
+        }
+        
+        // ==========================================
+        // CLEAR ALL DATA
+        // ==========================================
+        function clearAllData() {
+            if (!confirm('⚠️⚠️⚠️ DANGER: This will delete ALL your study sessions! This cannot be undone! Are you sure?')) {
+                return;
+            }
+            
+            if (!confirm('⚠️ Final confirmation: Are you absolutely sure?')) {
+                return;
+            }
+            
+            const messageEl = document.getElementById('settingsMessage');
+            
+            messageEl.innerHTML = `
+                <div class="info-message">
+                    <i class="fas fa-spinner fa-spin"></i> Clearing all data...
+                </div>
+            `;
+            
+            fetch('/api/clear?confirm=true', {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    messageEl.innerHTML = `
+                        <div class="success-message">
+                            <i class="fas fa-check-circle"></i> All data cleared successfully!
+                        </div>
+                    `;
+                } else {
+                    messageEl.innerHTML = `
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i> ${data.error || 'Failed to clear data'}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error clearing data:', error);
+                messageEl.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle"></i> Error clearing data.
+                    </div>
+                `;
+            });
+        }
+        
+        // ==========================================
+        // INITIALIZE
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSettings();
+            
+            if (window.matchMedia) {
+                const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+                mediaQuery.addEventListener('change', function(e) {
+                    const themeEl = document.getElementById('settingTheme');
+                    if (themeEl && themeEl.value === 'auto') {
+                        if (e.matches) {
+                            document.body.classList.add('dark-mode');
+                        } else {
+                            document.body.classList.remove('dark-mode');
+                        }
                     }
-                })
-                .catch(err => {
-                    showToast('❌ Error: ' + err, 'error');
-                })
-                .finally(() => {
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
                 });
-        }
-        
-        // ==========================================
-        // CLEAR ALL SESSIONS
-        // ==========================================
-        function clearAllSessions() {
-            if (!confirm('⚠️ DELETE ALL SESSIONS? This cannot be undone!')) return;
-            if (!confirm('Are you really sure? All your study data will be lost!')) return;
-            
-            const btn = event.target;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Clearing...';
-            btn.disabled = true;
-            
-            fetch('/api/clear?confirm=true', { method: 'DELETE' })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        showToast('✅ All sessions cleared!', 'success');
-                        loadStats();
-                        loadBackups();
-                    } else {
-                        showToast('❌ Failed to clear sessions: ' + data.error, 'error');
-                    }
-                })
-                .catch(err => {
-                    showToast('❌ Error: ' + err, 'error');
-                })
-                .finally(() => {
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                });
-        }
-        
-        // ==========================================
-        // RESET STATISTICS
-        // ==========================================
-        function resetStats() {
-            if (!confirm('Reset statistics? Your sessions will remain but stats will recalculate.')) return;
-            
-            showToast('🔄 Stats will recalculate on next view!', 'info');
-            setTimeout(() => {
-                loadStats();
-                showToast('✅ Stats recalculated!', 'success');
-            }, 500);
-        }
-        
-        // ==========================================
-        // AUTO REFRESH
-        // ==========================================
-        setInterval(() => {
-            loadStats();
-        }, 30000);
+            }
+        });
     </script>
 </body>
 </html>
