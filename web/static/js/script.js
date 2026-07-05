@@ -37,7 +37,7 @@ function showToast(message, type = 'success') {
     
     const toast = document.createElement('div');
     toast.style.cssText = `
-        background: ${isDark ? '#2d2d44' : '#ffffff'};
+        background: ${isDark ? 'rgba(45,45,68,0.95)' : 'rgba(255,255,255,0.95)'};
         color: ${isDark ? '#e0e0e0' : '#2D3436'};
         padding: 14px 20px;
         border-radius: 12px;
@@ -50,8 +50,8 @@ function showToast(message, type = 'success') {
         align-items: center;
         gap: 12px;
         pointer-events: auto;
-        backdrop-filter: blur(10px);
-        border: 1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'};
+        backdrop-filter: blur(20px);
+        border: 1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.2)'};
         max-width: 400px;
         width: 100%;
     `;
@@ -116,7 +116,7 @@ function toggleDarkMode() {
         body: JSON.stringify({ theme: isDark ? 'dark' : 'light' })
     }).catch(err => console.error('Error saving theme:', err));
     
-    showToast(isDark ? '🌙 Dark mode enabled' : '☀️ Light mode enabled', 'info');
+    showToast(isDark ? 'Dark mode enabled' : 'Light mode enabled', 'info');
 }
 
 // Check saved preference on load
@@ -288,19 +288,22 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('keydown', function(e) {
         if (e.ctrlKey && e.key === 'n') {
             e.preventDefault();
-            showAddModal();
+            if (typeof showAddModal === 'function') {
+                showAddModal();
+            }
         }
         if (e.key === 'Escape') {
-            closeModal();
+            if (typeof closeModal === 'function') {
+                closeModal();
+            }
         }
         if (e.ctrlKey && e.key >= '1' && e.key <= '5') {
             e.preventDefault();
             const pages = ['dashboard', 'sessions', 'subjects', 'insights', 'settings'];
             const page = pages[parseInt(e.key) - 1];
             if (page) {
-                const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
-                if (navItem) {
-                    navItem.click();
+                if (typeof navigateTo === 'function') {
+                    navigateTo(page);
                 }
             }
         }
@@ -447,9 +450,9 @@ function renderSettingsForm(settings) {
                 <div class="settings-group">
                     <label>Theme</label>
                     <select id="settingTheme" class="settings-input">
-                        <option value="light" ${s.theme === 'light' ? 'selected' : ''}>☀️ Light</option>
-                        <option value="dark" ${s.theme === 'dark' ? 'selected' : ''}>🌙 Dark</option>
-                        <option value="auto" ${s.theme === 'auto' ? 'selected' : ''}>🔄 Auto</option>
+                        <option value="light" ${s.theme === 'light' ? 'selected' : ''}><i class="fas fa-sun"></i> Light</option>
+                        <option value="dark" ${s.theme === 'dark' ? 'selected' : ''}><i class="fas fa-moon"></i> Dark</option>
+                        <option value="auto" ${s.theme === 'auto' ? 'selected' : ''}><i class="fas fa-sync-alt"></i> Auto</option>
                     </select>
                 </div>
                 
@@ -457,9 +460,9 @@ function renderSettingsForm(settings) {
                 <div class="settings-group">
                     <label>Language</label>
                     <select id="settingLanguage" class="settings-input">
-                        <option value="en" ${s.language === 'en' ? 'selected' : ''}>🇬🇧 English</option>
-                        <option value="ur" ${s.language === 'ur' ? 'selected' : ''}>🇵🇰 Urdu</option>
-                        <option value="hi" ${s.language === 'hi' ? 'selected' : ''}>🇮🇳 Hindi</option>
+                        <option value="en" ${s.language === 'en' ? 'selected' : ''}><i class="fas fa-flag"></i> English</option>
+                        <option value="ur" ${s.language === 'ur' ? 'selected' : ''}><i class="fas fa-flag"></i> Urdu</option>
+                        <option value="hi" ${s.language === 'hi' ? 'selected' : ''}><i class="fas fa-flag"></i> Hindi</option>
                     </select>
                 </div>
                 
@@ -467,8 +470,8 @@ function renderSettingsForm(settings) {
                 <div class="settings-group">
                     <label>Time Format</label>
                     <select id="settingTimeFormat" class="settings-input">
-                        <option value="12h" ${s.time_format === '12h' ? 'selected' : ''}>12-hour (AM/PM)</option>
-                        <option value="24h" ${s.time_format === '24h' ? 'selected' : ''}>24-hour</option>
+                        <option value="12h" ${s.time_format === '12h' ? 'selected' : ''}><i class="fas fa-clock"></i> 12-hour (AM/PM)</option>
+                        <option value="24h" ${s.time_format === '24h' ? 'selected' : ''}><i class="fas fa-clock"></i> 24-hour</option>
                     </select>
                 </div>
                 
@@ -477,7 +480,7 @@ function renderSettingsForm(settings) {
                     <label>Daily Goal (minutes)</label>
                     <input type="number" id="settingDailyGoal" class="settings-input" 
                            value="${s.daily_goal}" min="30" max="480">
-                    <span class="help-text">Recommended: 120 min</span>
+                    <span class="help-text"><i class="fas fa-info-circle"></i> Recommended: 120 min</span>
                 </div>
                 
                 <!-- Weekly Goal -->
@@ -485,7 +488,7 @@ function renderSettingsForm(settings) {
                     <label>Weekly Goal (minutes)</label>
                     <input type="number" id="settingWeeklyGoal" class="settings-input" 
                            value="${s.weekly_goal}" min="120" max="1680">
-                    <span class="help-text">Recommended: 600 min</span>
+                    <span class="help-text"><i class="fas fa-info-circle"></i> Recommended: 600 min</span>
                 </div>
                 
                 <!-- Default Subject -->
@@ -662,7 +665,7 @@ function saveSettings(event) {
 // RESET SETTINGS
 // ==========================================
 function resetSettings() {
-    if (!confirm('⚠️ Are you sure you want to reset all settings to default?')) {
+    if (!confirm('Are you sure you want to reset all settings to default?')) {
         return;
     }
     
@@ -865,7 +868,7 @@ function loadDashboard() {
 }
 
 // ==========================================
-// SUBJECT BREAKDOWN
+// SUBJECT BREAKDOWN - Premium Card Style
 // ==========================================
 function loadSubjectBreakdown() {
     fetch('/api/subjects')
@@ -875,29 +878,45 @@ function loadSubjectBreakdown() {
             if (!container) return;
             
             if (data.success && data.data && data.data.subjects) {
-                let html = '';
-                data.data.subjects.slice(0, 5).forEach(([subject, metrics]) => {
+                let html = '<div class="subject-grid">';
+                
+                data.data.subjects.slice(0, 6).forEach(([subject, metrics]) => {
                     const pct = metrics.avg_productivity;
                     const color = pct >= 70 ? '#2ECC71' : pct >= 50 ? '#F39C12' : '#E74C3C';
+                    const icon = subject.toLowerCase().includes('python') ? 'fa-python' :
+                                subject.toLowerCase().includes('java') ? 'fa-java' :
+                                subject.toLowerCase().includes('javascript') ? 'fa-js' :
+                                subject.toLowerCase().includes('sql') ? 'fa-database' :
+                                subject.toLowerCase().includes('ai') || subject.toLowerCase().includes('machine') ? 'fa-robot' :
+                                'fa-book';
+                    
                     html += `
-                        <div class="subject-item">
-                            <div class="subject-header">
-                                <span class="name"><i class="fas fa-book"></i>${subject}</span>
-                                <span class="score" style="color:${color};">${pct}%</span>
+                        <div class="subject-card">
+                            <div class="subject-card-icon" style="background:${color}20; color:${color};">
+                                <i class="fab ${icon}"></i>
                             </div>
-                            <div class="progress-bar">
-                                <div class="fill" style="width:0%;background:${color};"></div>
+                            <div class="subject-card-name">${subject}</div>
+                            <div class="subject-card-score" style="color:${color};">${pct}%</div>
+                            <div class="subject-card-stats">
+                                <span><i class="fas fa-clock"></i> ${metrics.total_time} min</span>
+                                <span><i class="fas fa-layer-group"></i> ${metrics.sessions} sessions</span>
+                                <span><i class="fas fa-exclamation-triangle"></i> ${metrics.avg_distractions} distractions</span>
                             </div>
+                            <div class="subject-card-progress">
+                                <div class="progress-fill" style="width:${pct}%; background:${color};"></div>
+                            </div>
+                            ${pct >= 90 ? '<div class="subject-card-badge"><i class="fas fa-crown"></i> Best</div>' : ''}
                         </div>
                     `;
                 });
+                
+                html += '</div>';
                 container.innerHTML = html;
                 
-                // Animate bars
+                // Animate progress bars
                 setTimeout(() => {
-                    document.querySelectorAll('.subject-item .fill').forEach((bar, index) => {
-                        const pct = data.data.subjects[index]?.[1]?.avg_productivity || 0;
-                        bar.style.width = `${pct}%`;
+                    document.querySelectorAll('.subject-card .progress-fill').forEach(bar => {
+                        bar.style.transition = 'width 1s ease';
                     });
                 }, 300);
                 
@@ -907,18 +926,19 @@ function loadSubjectBreakdown() {
                 }
             } else {
                 container.innerHTML = `
-                    <div style="text-align:center;color:#95A5A6;padding:20px 0;">
-                        <i class="fas fa-layer-group" style="font-size:32px;display:block;margin-bottom:12px;color:var(--primary);"></i>
-                        No subjects yet. Add sessions!
+                    <div class="empty-state">
+                        <i class="fas fa-layer-group"></i>
+                        <p>No subjects yet. Add sessions!</p>
                     </div>
                 `;
             }
         })
         .catch(err => {
             document.getElementById('subjectBreakdown').innerHTML = `
-                <p style="color:#E74C3C;text-align:center;">
-                    <i class="fas fa-exclamation-circle"></i> Error loading subjects
-                </p>
+                <div class="error-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading subjects</p>
+                </div>
             `;
         });
 }
@@ -967,8 +987,8 @@ function loadSessions() {
                 updateSubjectFilter(data.data);
             } else {
                 container.innerHTML = `
-                    <div style="text-align:center;color:#95A5A6;padding:30px 0;">
-                        <i class="fas fa-book-open" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
+                    <div class="empty-state">
+                        <i class="fas fa-book-open"></i>
                         <p>No sessions found</p>
                         <p style="font-size:13px;margin-top:4px;">Start tracking your study sessions</p>
                     </div>
@@ -977,9 +997,10 @@ function loadSessions() {
         })
         .catch(err => {
             document.getElementById('sessionsList').innerHTML = `
-                <p style="color:#E74C3C;text-align:center;">
-                    <i class="fas fa-exclamation-circle"></i> Error loading sessions
-                </p>
+                <div class="error-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading sessions</p>
+                </div>
             `;
         });
 }
@@ -1068,8 +1089,8 @@ function applyFilters() {
                 container.innerHTML = html;
             } else {
                 container.innerHTML = `
-                    <div style="text-align:center;color:#95A5A6;padding:30px 0;">
-                        <i class="fas fa-search" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
+                    <div class="empty-state">
+                        <i class="fas fa-search"></i>
                         <p>No sessions found with current filters</p>
                     </div>
                 `;
@@ -1107,62 +1128,57 @@ function loadSubjects() {
             
             if (data.success && data.data && data.data.subjects) {
                 let html = `
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-                        <div style="background:linear-gradient(135deg,#2ECC71,#27AE60);color:white;padding:16px;border-radius:12px;text-align:center;">
-                            <div style="font-size:12px;opacity:0.8;">Best Subject</div>
-                            <div style="font-size:20px;font-weight:700;margin-top:4px;">
-                                ${data.data.best_subject ? data.data.best_subject[0] : '-'}
-                            </div>
-                            <div style="font-size:14px;opacity:0.9;">
-                                ${data.data.best_subject ? data.data.best_subject[1].avg_productivity + '%' : ''}
-                            </div>
+                    <div class="subject-analysis-header">
+                        <div class="best-subject-card">
+                            <i class="fas fa-crown"></i>
+                            <div class="best-subject-label">Best Subject</div>
+                            <div class="best-subject-name">${data.data.best_subject ? data.data.best_subject[0] : '-'}</div>
+                            <div class="best-subject-score">${data.data.best_subject ? data.data.best_subject[1].avg_productivity + '%' : ''}</div>
                         </div>
-                        <div style="background:linear-gradient(135deg,#E74C3C,#C0392B);color:white;padding:16px;border-radius:12px;text-align:center;">
-                            <div style="font-size:12px;opacity:0.8;">Worst Subject</div>
-                            <div style="font-size:20px;font-weight:700;margin-top:4px;">
-                                ${data.data.worst_subject ? data.data.worst_subject[0] : '-'}
-                            </div>
-                            <div style="font-size:14px;opacity:0.9;">
-                                ${data.data.worst_subject ? data.data.worst_subject[1].avg_productivity + '%' : ''}
-                            </div>
+                        <div class="worst-subject-card">
+                            <i class="fas fa-arrow-down"></i>
+                            <div class="worst-subject-label">Worst Subject</div>
+                            <div class="worst-subject-name">${data.data.worst_subject ? data.data.worst_subject[0] : '-'}</div>
+                            <div class="worst-subject-score">${data.data.worst_subject ? data.data.worst_subject[1].avg_productivity + '%' : ''}</div>
                         </div>
                     </div>
+                    <div class="subject-analysis-grid">
                 `;
                 
                 data.data.subjects.forEach(([subject, metrics]) => {
                     const pct = metrics.avg_productivity;
                     const color = pct >= 70 ? '#2ECC71' : pct >= 50 ? '#F39C12' : '#E74C3C';
                     html += `
-                        <div class="subject-item">
-                            <div class="subject-header">
-                                <span class="name"><i class="fas fa-book" style="color:${color};"></i>${subject}</span>
-                                <span class="score" style="color:${color};">${pct}%</span>
+                        <div class="subject-analysis-card">
+                            <div class="subject-analysis-icon" style="background:${color}20; color:${color};">
+                                <i class="fas fa-book"></i>
                             </div>
-                            <div style="display:flex;justify-content:space-between;font-size:12px;color:#95A5A6;margin-top:2px;">
+                            <div class="subject-analysis-name">${subject}</div>
+                            <div class="subject-analysis-score" style="color:${color};">${pct}%</div>
+                            <div class="subject-analysis-stats">
                                 <span><i class="fas fa-clock"></i> ${metrics.total_time} min</span>
                                 <span><i class="fas fa-layer-group"></i> ${metrics.sessions} sessions</span>
                                 <span><i class="fas fa-exclamation-triangle"></i> ${metrics.avg_distractions} distractions</span>
                             </div>
-                            <div class="progress-bar" style="margin-top:4px;">
-                                <div class="fill" style="width:0%;background:${color};"></div>
+                            <div class="subject-analysis-progress">
+                                <div class="progress-fill" style="width:${pct}%; background:${color};"></div>
                             </div>
                         </div>
                     `;
                 });
+                
+                html += '</div>';
                 container.innerHTML = html;
                 
                 setTimeout(() => {
-                    document.querySelectorAll('#subjectAnalysis .fill').forEach((bar, index) => {
-                        const subjectData = data.data.subjects[index];
-                        if (subjectData) {
-                            bar.style.width = `${subjectData[1].avg_productivity}%`;
-                        }
+                    document.querySelectorAll('.subject-analysis-card .progress-fill').forEach(bar => {
+                        bar.style.transition = 'width 1s ease';
                     });
                 }, 300);
             } else {
                 container.innerHTML = `
-                    <div style="text-align:center;color:#95A5A6;padding:30px 0;">
-                        <i class="fas fa-layer-group" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
+                    <div class="empty-state">
+                        <i class="fas fa-layer-group"></i>
                         <p>No subjects yet</p>
                         <p style="font-size:13px;margin-top:4px;">Add sessions to see subject analysis</p>
                     </div>
@@ -1171,15 +1187,16 @@ function loadSubjects() {
         })
         .catch(err => {
             document.getElementById('subjectAnalysis').innerHTML = `
-                <p style="color:#E74C3C;text-align:center;">
-                    <i class="fas fa-exclamation-circle"></i> Error loading subject analysis
-                </p>
+                <div class="error-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading subject analysis</p>
+                </div>
             `;
         });
 }
 
 // ==========================================
-// AI INSIGHTS
+// AI INSIGHTS - Premium Dark Mode
 // ==========================================
 function loadInsights() {
     fetch('/api/insights')
@@ -1188,103 +1205,59 @@ function loadInsights() {
             const container = document.getElementById('aiInsights');
             if (!container) return;
             
-            if (data.success && data.data) {
+            if (data.success && data.data && !data.data.error) {
                 const insights = data.data;
-                let html = '';
+                let html = '<div class="insights-container">';
                 
-                if (insights.patterns) {
-                    const patterns = insights.patterns;
-                    
-                    if (patterns.best_learning_time && patterns.best_learning_time.hour !== undefined) {
-                        const hour = patterns.best_learning_time.hour;
-                        const productivity = patterns.best_learning_time.avg_productivity || 0;
-                        html += `
-                            <div class="insight-box">
-                                <h4><i class="fas fa-clock"></i> Best Time to Study</h4>
-                                <p>${String(hour).padStart(2, '0')}:00</p>
-                                <div class="sub-text">${productivity}% average productivity</div>
-                            </div>
-                        `;
-                    }
-                    
-                    if (patterns.most_consistent_subject) {
-                        html += `
-                            <div style="padding:12px 16px; background:#f8f9fa; border-radius:12px; margin-bottom:12px;">
-                                <p style="font-size:14px;">
-                                    <i class="fas fa-trophy" style="color:#F39C12;"></i>
-                                    <strong>Most Consistent Subject:</strong> 
-                                    ${patterns.most_consistent_subject.subject} 
-                                    (${patterns.most_consistent_subject.avg}% avg)
-                                </p>
-                            </div>
-                        `;
-                    }
-                    
-                    if (patterns.distraction_patterns) {
-                        const dp = patterns.distraction_patterns;
-                        html += `
-                            <div style="padding:12px 16px; background:#f8f9fa; border-radius:12px; margin-bottom:12px;">
-                                <p style="font-size:14px;">
-                                    <i class="fas fa-exclamation-triangle" style="color:#F39C12;"></i>
-                                    <strong>Distraction Stats:</strong>
-                                    Avg: ${dp.avg_distractions || 0} | 
-                                    Zero-distraction sessions: ${dp.zero_distraction_sessions || 0}
-                                </p>
-                            </div>
-                        `;
-                    }
-                }
-                
-                if (insights.analysis && insights.analysis.overall_stats) {
-                    const stats = insights.analysis.overall_stats;
-                    
-                    let consistency = '--';
-                    if (insights.analysis.consistency !== undefined) {
-                        consistency = insights.analysis.consistency + '%';
-                    }
-                    
+                // Best Time
+                if (insights.patterns?.best_learning_time) {
+                    const hour = insights.patterns.best_learning_time.hour;
+                    const productivity = insights.patterns.best_learning_time.avg_productivity;
                     html += `
-                        <div style="background:#f8f9fa;padding:16px;border-radius:12px;margin-top:12px;">
-                            <h4 style="margin-bottom:8px;font-size:14px;">
-                                <i class="fas fa-chart-line" style="color:var(--primary);"></i> 
-                                Productivity Stats
-                            </h4>
-                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
-                                <div>
-                                    <div style="font-size:11px;color:#95A5A6;">Mean</div>
-                                    <div style="font-size:16px;font-weight:700;">${stats.mean || 0}%</div>
-                                </div>
-                                <div>
-                                    <div style="font-size:11px;color:#95A5A6;">Median</div>
-                                    <div style="font-size:16px;font-weight:700;">${stats.median || 0}%</div>
-                                </div>
-                                <div>
-                                    <div style="font-size:11px;color:#95A5A6;">Consistency</div>
-                                    <div style="font-size:16px;font-weight:700;">${consistency}</div>
-                                </div>
-                            </div>
-                            <div style="margin-top:8px;text-align:center;font-size:12px;color:#95A5A6;">
-                                Based on ${insights.total_sessions || 0} sessions
-                            </div>
+                        <div class="insight-card glow-card">
+                            <div class="insight-icon"><i class="fas fa-clock"></i></div>
+                            <div class="insight-title">Best Time to Study</div>
+                            <div class="insight-value">${String(hour).padStart(2, '0')}:00</div>
+                            <div class="insight-sub">${productivity}% average productivity</div>
                         </div>
                     `;
                 }
                 
+                // Stats Cards
+                if (insights.analysis?.overall_stats) {
+                    const stats = insights.analysis.overall_stats;
+                    const consistency = insights.analysis.consistency || 0;
+                    html += `
+                        <div class="insight-stats-grid">
+                            <div class="stat-card-mini">
+                                <div class="stat-icon-mini"><i class="fas fa-chart-line"></i></div>
+                                <div class="stat-label-mini">Mean</div>
+                                <div class="stat-value-mini">${stats.mean || 0}%</div>
+                            </div>
+                            <div class="stat-card-mini">
+                                <div class="stat-icon-mini"><i class="fas fa-chart-bar"></i></div>
+                                <div class="stat-label-mini">Median</div>
+                                <div class="stat-value-mini">${stats.median || 0}%</div>
+                            </div>
+                            <div class="stat-card-mini">
+                                <div class="stat-icon-mini"><i class="fas fa-bullseye"></i></div>
+                                <div class="stat-label-mini">Consistency</div>
+                                <div class="stat-value-mini">${consistency}%</div>
+                            </div>
+                        </div>
+                        <div class="insight-footer">Based on ${insights.total_sessions || 0} sessions</div>
+                    `;
+                }
+                
+                // Recommendations
                 if (insights.recommendations && insights.recommendations.length > 0) {
                     html += `
-                        <div style="margin-top:16px;padding:16px;border-radius:12px;border:1px solid rgba(108,99,255,0.2);">
-                            <h4 style="margin-bottom:8px;font-size:14px;">
-                                <i class="fas fa-lightbulb" style="color:#F39C12;"></i> Recommendations
-                            </h4>
-                            <ul style="list-style:none;padding:0;">
+                        <div class="recommendations-card">
+                            <div class="recommendations-title"><i class="fas fa-lightbulb"></i> Recommendations</div>
+                            <ul class="recommendations-list">
                     `;
                     insights.recommendations.slice(0, 5).forEach(rec => {
-                        html += `
-                            <li style="padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.05);font-size:13px;">
-                                <i class="fas fa-arrow-right" style="color:var(--primary);margin-right:8px;"></i>
-                                ${rec}
-                            </li>
-                        `;
+                        html += `<li><i class="fas fa-arrow-right"></i> ${rec}</li>`;
                     });
                     html += `
                             </ul>
@@ -1292,26 +1265,26 @@ function loadInsights() {
                     `;
                 }
                 
+                // AI Confidence
                 if (insights.ai_confidence) {
                     html += `
-                        <div style="margin-top:12px;text-align:center;font-size:12px;color:#95A5A6;">
-                            AI Confidence: ${insights.ai_confidence}%
+                        <div class="confidence-bar">
+                            <span class="confidence-label">AI Confidence</span>
+                            <div class="confidence-track">
+                                <div class="confidence-fill" style="width:${insights.ai_confidence}%;"></div>
+                            </div>
+                            <span class="confidence-value">${insights.ai_confidence}%</span>
                         </div>
                     `;
                 }
                 
-                container.innerHTML = html || `
-                    <div style="text-align:center;color:#95A5A6;padding:30px 0;">
-                        <i class="fas fa-robot" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
-                        <p>Add more sessions for AI insights</p>
-                        <p style="font-size:13px;margin-top:4px;">Need at least 5 sessions for analysis</p>
-                    </div>
-                `;
+                html += '</div>';
+                container.innerHTML = html;
             } else {
                 container.innerHTML = `
-                    <div style="text-align:center;color:#95A5A6;padding:30px 0;">
-                        <i class="fas fa-robot" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
-                        <p>${data.message || 'Add more sessions for AI insights'}</p>
+                    <div class="empty-state">
+                        <i class="fas fa-robot"></i>
+                        <p>${data.data?.message || 'Add more sessions for AI insights'}</p>
                         <p style="font-size:13px;margin-top:4px;">Need at least 5 sessions for analysis</p>
                     </div>
                 `;
@@ -1322,15 +1295,13 @@ function loadInsights() {
             const container = document.getElementById('aiInsights');
             if (container) {
                 container.innerHTML = `
-                    <p style="color:#E74C3C;text-align:center;">
-                        <i class="fas fa-exclamation-circle"></i> Error loading AI insights
-                    </p>
+                    <div class="error-state">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Error loading AI insights</p>
+                    </div>
                 `;
             }
         });
-}
-function loadAIInsights() {
-    loadInsights();
 }
 
 // ==========================================
@@ -1436,9 +1407,9 @@ setInterval(() => {
     }
 }, 30000);
 
-console.log('🧠 Smart Study System loaded successfully!');
-console.log('📚 Track your study sessions and get AI insights!');
-console.log('⌨️ Keyboard Shortcuts:');
+console.log('Smart Study System loaded successfully!');
+console.log('Track your study sessions and get AI insights!');
+console.log('Keyboard Shortcuts:');
 console.log('  Ctrl+N - New Session');
 console.log('  Ctrl+1-5 - Navigate pages');
 console.log('  Escape - Close modal');
