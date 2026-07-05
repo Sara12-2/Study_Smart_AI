@@ -7,8 +7,14 @@ Premium CLI with rich formatting and interactive experience
 import sys
 import os
 import logging
+import codecs
 from datetime import datetime
 from typing import Optional
+
+# Fix Windows console encoding for emojis
+if sys.platform == 'win32':
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -16,13 +22,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from src.core.session import StudySession
 from src.core.productivity import ProductivityEngine
 from src.storage.json_storage import JSONStorage
+from src.ai.analyzer import AIAnalyzer
+from src.ai.predictor import AIPredictor
+from src.ai.recommender import AIRecommender
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('logs/cli.log'),
+        logging.FileHandler('logs/cli.log', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
@@ -31,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 class StudyCLI:
     """
-    Premium Command Line Interface for Study Smart System
+    Premium Command Line Interface for Smart Study System
     Features:
     - Interactive menu
     - Rich formatting
@@ -39,12 +48,17 @@ class StudyCLI:
     - Session management
     - Analytics dashboard
     - AI insights
+    - Backup & Restore
+    - Session edit & search
     """
     
     def __init__(self):
         """Initialize CLI with storage and engine"""
         self.storage = JSONStorage()
         self.engine = ProductivityEngine(self.storage)
+        self.analyzer = AIAnalyzer()
+        self.predictor = AIPredictor()
+        self.recommender = AIRecommender()
         self.current_user = None
         self.is_running = True
         
@@ -77,8 +91,10 @@ class StudyCLI:
         print("  4. 📉  Subject Analysis")
         print("  5. 🤖  AI Insights & Recommendations")
         print("  6. 📁  Manage Sessions")
-        print("  7. 🗂️  Backup & Restore")
-        print("  8. ℹ️  Statistics")
+        print("  7. ✏️  Edit Session")
+        print("  8. 🔍  Search Sessions")
+        print("  9. 🗂️  Backup & Restore")
+        print("  10. ℹ️  Statistics")
         print("  0. 🚪  Exit")
         print("  " + "-" * 50)
     
@@ -288,6 +304,11 @@ class StudyCLI:
         print("\n  🤖 AI INSIGHTS & RECOMMENDATIONS")
         print("  " + "-" * 40)
         
+        sessions = self.storage.load_all_sessions()
+        
+        # Get insights from analyzer
+        insights = self.analyzer.generate_insights(sessions)
+        
         # Get trends
         trends = self.engine.get_productivity_trends(30)
         
@@ -307,6 +328,15 @@ class StudyCLI:
                     print(f"    • {period['time_range']} (Score: {period['avg_score']}%)")
             
             print(f"\n  💡 Recommendation: {optimal_times['recommendation']}")
+        
+        # Show recommendations if available
+        if insights and not insights.get('error'):
+            recommendations = insights.get('recommendations', [])
+            if recommendations:
+                print("\n  💡 AI RECOMMENDATIONS")
+                print("  " + "-" * 40)
+                for rec in recommendations[:5]:
+                    print(f"  • {rec}")
         
         print("\n  📈 PRODUCTIVITY TRENDS (30 days)")
         if 'error' in trends:
@@ -371,6 +401,100 @@ class StudyCLI:
         
         input("\n  Press Enter to continue...")
     
+    def edit_session(self):
+        """Edit an existing session"""
+        print("\n  ✏️ EDIT SESSION")
+        print("  " + "-" * 40)
+        
+        sessions = self.storage.load_all_sessions()
+        if not sessions:
+            print("\n  📭 No sessions found.")
+            input("\n  Press Enter to continue...")
+            return
+        
+        # Show sessions
+        print("\n  Recent Sessions:")
+        print("  " + "-" * 40)
+        recent = sessions[-10:]
+        for i, session in enumerate(recent, 1):
+            date = session.get('timestamp', '')[:10]
+            subject = session.get('subject', 'Unknown')
+            duration = session.get('duration', 0)
+            productivity = session.get('productivity_score', 0)
+            print(f"  {i}. {date} - {subject} ({duration}min) - {productivity}%")
+        
+        choice = self.get_input("\n  Select session to edit (1-10): ", int, min_val=1, max_val=len(recent))
+        if choice is None:
+            return
+        
+        actual_index = len(sessions) - 10 + choice - 1
+        if actual_index < 0:
+            actual_index = choice - 1
+        session = sessions[actual_index]
+        
+        print(f"\n  Editing: {session.get('subject')} - {session.get('duration')}min")
+        print("  " + "-" * 40)
+        
+        # Get new values (press Enter to keep current)
+        subject = self.get_input(f"  Subject ({session.get('subject')}): ", str, required=False)
+        duration = self.get_input(f"  Duration ({session.get('duration')}min): ", int, required=False, min_val=5, max_val=240)
+        distractions = self.get_input(f"  Distractions ({session.get('distractions')}): ", int, required=False, min_val=0, max_val=20)
+        mood = self.get_input(f"  Mood ({session.get('mood', 'N/A')}): ", int, required=False, min_val=1, max_val=5)
+        
+        # Update session
+        if subject:
+            session['subject'] = subject
+        if duration:
+            session['duration'] = duration
+        if distractions is not None:
+            session['distractions'] = distractions
+        if mood is not None:
+            session['mood'] = mood
+        
+        # Recalculate productivity
+        temp_session = StudySession(
+            subject=session['subject'],
+            duration=session['duration'],
+            distractions=session.get('distractions', 0)
+        )
+        temp_session.calculate_productivity()
+        session['productivity_score'] = temp_session.productivity_score
+        
+        # Save
+        self.storage._write_data(sessions)
+        print("\n  ✅ Session updated successfully!")
+        logger.info(f"Session edited: {session['subject']}")
+        
+        input("\n  Press Enter to continue...")
+    
+    def search_sessions(self):
+        """Search sessions by subject"""
+        print("\n  🔍 SEARCH SESSIONS")
+        print("  " + "-" * 40)
+        
+        query = input("  Enter subject to search: ").strip().lower()
+        if not query:
+            print("\n  ❌ Search query cannot be empty.")
+            input("\n  Press Enter to continue...")
+            return
+        
+        sessions = self.storage.load_all_sessions()
+        results = [s for s in sessions if query in s.get('subject', '').lower()]
+        
+        if not results:
+            print(f"\n  ❌ No sessions found for '{query}'")
+        else:
+            print(f"\n  📚 Found {len(results)} sessions:")
+            print("  " + "-" * 40)
+            for i, session in enumerate(results, 1):
+                date = session.get('timestamp', '')[:10]
+                subject = session.get('subject', 'Unknown')
+                duration = session.get('duration', 0)
+                productivity = session.get('productivity_score', 0)
+                print(f"  {i}. {date} - {subject} ({duration}min) - {productivity}%")
+        
+        input("\n  Press Enter to continue...")
+    
     def backup_restore(self):
         """Backup and restore functionality"""
         print("\n  🗂️ BACKUP & RESTORE")
@@ -387,17 +511,39 @@ class StudyCLI:
         if choice == 1:
             backup_file = self.storage.create_backup()
             print(f"  ✅ Backup created: {backup_file}")
+        
         elif choice == 2:
-            stats = self.storage.get_statistics()
-            print(f"\n  📊 Backups available: {stats['backup_count']}")
+            # Get available backups
+            backup_dir = 'data/backups'
+            backups = []
+            if os.path.exists(backup_dir):
+                backups = sorted([f for f in os.listdir(backup_dir) if f.endswith('.json')], reverse=True)
+            
+            if not backups:
+                print("\n  ❌ No backups found.")
+                input("\n  Press Enter to continue...")
+                return
+            
+            print("\n  📋 Available Backups:")
+            for i, backup in enumerate(backups, 1):
+                file_path = os.path.join(backup_dir, backup)
+                size = os.path.getsize(file_path)
+                print(f"  {i}. {backup} ({size} bytes)")
+            
+            choice_num = self.get_input("\n  Select backup to restore: ", int, min_val=1, max_val=len(backups))
+            if choice_num is None:
+                return
+            
+            backup_file = os.path.join(backup_dir, backups[choice_num - 1])
+            
             print("  ⚠️ Restoring will replace current data!")
             confirm = input("  Continue? (yes/no): ")
             if confirm.lower() == 'yes':
-                backup_file = input("  Enter backup file path: ").strip()
                 if self.storage.restore_from_backup(backup_file):
                     print("  ✅ Data restored successfully!")
                 else:
                     print("  ❌ Restore failed.")
+        
         elif choice == 3:
             stats = self.storage.get_statistics()
             print(f"\n  📊 Storage Statistics:")
@@ -442,7 +588,7 @@ class StudyCLI:
         while self.is_running:
             try:
                 self.print_menu()
-                choice = self.get_input("  Enter your choice: ", int, min_val=0, max_val=8)
+                choice = self.get_input("  Enter your choice: ", int, min_val=0, max_val=10)
                 
                 if choice == 0:
                     print("\n  👋 Thank you for using Smart Study System!")
@@ -462,8 +608,12 @@ class StudyCLI:
                 elif choice == 6:
                     self.manage_sessions()
                 elif choice == 7:
-                    self.backup_restore()
+                    self.edit_session()
                 elif choice == 8:
+                    self.search_sessions()
+                elif choice == 9:
+                    self.backup_restore()
+                elif choice == 10:
                     self.view_statistics()
                 
             except KeyboardInterrupt:
