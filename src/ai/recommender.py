@@ -20,11 +20,36 @@ class AIRecommender:
     - Actionable suggestions
     - Progress tracking
     - Smart alerts
+    - Study tips
     """
     
+    # Configuration constants
+    MIN_SESSIONS_FOR_RECOMMENDATIONS = 5
+    MIN_SESSIONS_FOR_TIME_RECOMMENDATION = 7
+    MIN_SESSIONS_FOR_CONSISTENCY_RECOMMENDATION = 10
+    HIGH_DISTRACTION_THRESHOLD = 5
+    MODERATE_DISTRACTION_THRESHOLD = 3
+    PERFECT_DISTRACTION_THRESHOLD = 1
+    LOW_CONSISTENCY_THRESHOLD = 1.5
+    HIGH_CONSISTENCY_THRESHOLD = 3
+    LONG_SESSION_THRESHOLD = 120
+    
     def __init__(self):
-        """Initialize the recommender"""
+        """Initialize the recommender with cache"""
+        self._cache = {}
+        self._cache_time = {}
+        self._cache_ttl = timedelta(minutes=5)
         logger.info("AIRecommender initialized")
+    
+    def _get_cached(self, key: str, func, *args, **kwargs):
+        """Get cached data or compute fresh"""
+        if key in self._cache:
+            if datetime.now() - self._cache_time[key] < self._cache_ttl:
+                return self._cache[key]
+        result = func(*args, **kwargs)
+        self._cache[key] = result
+        self._cache_time[key] = datetime.now()
+        return result
     
     def get_recommendations(self, sessions: List[Dict[str, Any]]) -> List[Dict[str, str]]:
         """
@@ -36,13 +61,13 @@ class AIRecommender:
         Returns:
             List of recommendation dictionaries
         """
-        if len(sessions) < 5:
+        if len(sessions) < self.MIN_SESSIONS_FOR_RECOMMENDATIONS:
             return [
                 {
                     'type': 'info',
                     'title': '📚 Start Tracking',
-                    'description': 'Add more sessions to get personalized recommendations!',
-                    'action': 'Add 5+ sessions for insights'
+                    'description': f'Add {self.MIN_SESSIONS_FOR_RECOMMENDATIONS - len(sessions)} more sessions to get personalized recommendations!',
+                    'action': f'Add {self.MIN_SESSIONS_FOR_RECOMMENDATIONS - len(sessions)}+ sessions for insights'
                 }
             ]
         
@@ -73,6 +98,10 @@ class AIRecommender:
         if break_rec:
             recommendations.append(break_rec)
         
+        # Sort by priority (warning → info → success)
+        priority_order = {'warning': 1, 'info': 2, 'success': 3}
+        recommendations.sort(key=lambda x: priority_order.get(x.get('type', 'info'), 2))
+        
         if not recommendations:
             recommendations.append({
                 'type': 'info',
@@ -88,21 +117,21 @@ class AIRecommender:
         recent = sessions[-10:] if len(sessions) > 10 else sessions
         avg_dist = sum(s.get('distractions', 0) for s in recent) / len(recent)
         
-        if avg_dist > 5:
+        if avg_dist > self.HIGH_DISTRACTION_THRESHOLD:
             return {
                 'type': 'warning',
                 'title': '⚠️ High Distractions',
                 'description': f'You average {round(avg_dist, 1)} distractions per session. Try the Pomodoro technique!',
                 'action': '25 min focus → 5 min break → Repeat'
             }
-        elif avg_dist > 3:
+        elif avg_dist > self.MODERATE_DISTRACTION_THRESHOLD:
             return {
                 'type': 'info',
                 'title': '📊 Moderate Distractions',
                 'description': f'You average {round(avg_dist, 1)} distractions. Try to reduce by 1 per session.',
                 'action': 'Aim for 3 or fewer distractions'
             }
-        elif avg_dist < 1:
+        elif avg_dist < self.PERFECT_DISTRACTION_THRESHOLD:
             return {
                 'type': 'success',
                 'title': '🎯 Great Focus',
@@ -116,7 +145,6 @@ class AIRecommender:
         if len(sessions) < 5:
             return None
         
-        # Calculate subject performance
         subject_scores = defaultdict(list)
         for s in sessions:
             subject = s.get('subject', 'Unknown')
@@ -127,7 +155,6 @@ class AIRecommender:
         if not subject_scores:
             return None
         
-        # Find best and worst subjects
         subject_avg = {
             subj: sum(scores) / len(scores)
             for subj, scores in subject_scores.items()
@@ -147,10 +174,9 @@ class AIRecommender:
     
     def _recommend_time(self, sessions: List[Dict[str, Any]]) -> Optional[Dict[str, str]]:
         """Generate time-based recommendations"""
-        if len(sessions) < 7:
+        if len(sessions) < self.MIN_SESSIONS_FOR_TIME_RECOMMENDATION:
             return None
         
-        # Find best time
         hour_scores = defaultdict(list)
         for s in sessions:
             if s.get('timestamp') and s.get('productivity_score'):
@@ -171,10 +197,9 @@ class AIRecommender:
     
     def _recommend_consistency(self, sessions: List[Dict[str, Any]]) -> Optional[Dict[str, str]]:
         """Generate consistency recommendations"""
-        if len(sessions) < 10:
+        if len(sessions) < self.MIN_SESSIONS_FOR_CONSISTENCY_RECOMMENDATION:
             return None
         
-        # Check daily consistency
         daily_sessions = defaultdict(int)
         for s in sessions:
             if s.get('timestamp'):
@@ -184,14 +209,14 @@ class AIRecommender:
         days = len(daily_sessions)
         avg = len(sessions) / days if days > 0 else 0
         
-        if avg < 1.5:
+        if avg < self.LOW_CONSISTENCY_THRESHOLD:
             return {
                 'type': 'warning',
                 'title': '📅 Inconsistent Study',
                 'description': f'You study only {round(avg, 1)} sessions per day. Try to be more consistent!',
                 'action': 'Aim for at least 2 sessions per day'
             }
-        elif avg >= 3:
+        elif avg >= self.HIGH_CONSISTENCY_THRESHOLD:
             return {
                 'type': 'success',
                 'title': '🔥 Great Consistency',
@@ -205,8 +230,7 @@ class AIRecommender:
         if len(sessions) < 5:
             return None
         
-        # Find long sessions
-        long_sessions = [s for s in sessions if s.get('duration', 0) > 120]
+        long_sessions = [s for s in sessions if s.get('duration', 0) > self.LONG_SESSION_THRESHOLD]
         
         if long_sessions:
             return {
@@ -219,13 +243,17 @@ class AIRecommender:
     
     def get_motivational_messages(self, sessions: List[Dict[str, Any]]) -> List[str]:
         """Get motivational messages based on data"""
+        cache_key = f"motivational_{len(sessions)}"
+        return self._get_cached(cache_key, self._get_motivational_messages, sessions)
+    
+    def _get_motivational_messages(self, sessions: List[Dict[str, Any]]) -> List[str]:
+        """Internal method to get motivational messages"""
         messages = []
         
         if not sessions:
             messages.append("🌟 Start your learning journey today!")
             return messages
         
-        # Count total time
         total_time = sum(s.get('duration', 0) for s in sessions)
         hours = total_time / 60
         
@@ -238,15 +266,103 @@ class AIRecommender:
         else:
             messages.append("🌟 Every journey starts with a single step. Keep going!")
         
-        # Check streaks
         if len(sessions) >= 5:
             messages.append("🔥 You're building a learning streak! Stay consistent!")
         
-        # Check improvements
-        recent_avg = sum(s.get('productivity_score', 0) for s in sessions[-5:]) / min(5, len(sessions))
-        overall_avg = sum(s.get('productivity_score', 0) for s in sessions) / len(sessions)
-        
-        if recent_avg > overall_avg:
-            messages.append("📈 You're improving! Your recent sessions are better than average!")
+        if len(sessions) >= 5:
+            recent_avg = sum(s.get('productivity_score', 0) for s in sessions[-5:]) / min(5, len(sessions))
+            overall_avg = sum(s.get('productivity_score', 0) for s in sessions) / len(sessions)
+            if recent_avg > overall_avg:
+                messages.append("📈 You're improving! Your recent sessions are better than average!")
         
         return messages
+    
+    def get_study_tips(self, sessions: List[Dict[str, Any]]) -> List[str]:
+        """
+        Generate general study tips based on data
+        
+        Args:
+            sessions: List of session dictionaries
+            
+        Returns:
+            List of study tips
+        """
+        if len(sessions) < 3:
+            return ["📚 Start tracking your sessions to get personalized tips!"]
+        
+        tips = []
+        
+        # Check for optimal session length
+        durations = [s.get('duration', 0) for s in sessions if s.get('duration')]
+        if durations:
+            avg_duration = sum(durations) / len(durations)
+            if avg_duration > 90:
+                tips.append("⏱️ Your sessions are longer than 90 minutes on average. Consider taking breaks every 45-60 minutes.")
+            elif avg_duration < 25:
+                tips.append("⏱️ Your sessions are short. Try to extend them to 30-60 minutes for better focus.")
+        
+        # Check for variety
+        subjects = list(set(s.get('subject', '') for s in sessions if s.get('subject')))
+        if len(subjects) < 2:
+            tips.append("📚 You're focusing on only one subject. Try diversifying your study topics!")
+        
+        # Check for consistency
+        if len(sessions) > 5:
+            dates = set()
+            for s in sessions:
+                if s.get('timestamp'):
+                    date = datetime.fromisoformat(s['timestamp']).date()
+                    dates.add(date)
+            
+            if len(dates) < len(sessions) * 0.5:
+                tips.append("📅 You have multiple sessions on some days. Try to spread your study throughout the week.")
+        
+        if not tips:
+            tips.append("🌟 You're doing great! Keep up your current study habits!")
+        
+        return tips
+    
+    def get_recommendation_progress(self, sessions: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Track progress on recommendations
+        
+        Returns:
+            Dictionary with progress metrics
+        """
+        if len(sessions) < 5:
+            return {'message': 'Not enough data for progress tracking'}
+        
+        recent = sessions[-10:] if len(sessions) > 10 else sessions
+        older = sessions[:-10] if len(sessions) > 10 else []
+        
+        progress = {}
+        
+        # Distraction progress
+        if recent and older:
+            recent_avg_dist = sum(s.get('distractions', 0) for s in recent) / len(recent)
+            older_avg_dist = sum(s.get('distractions', 0) for s in older) / len(older) if older else recent_avg_dist
+            
+            progress['distractions'] = {
+                'improvement': round((older_avg_dist - recent_avg_dist) / max(older_avg_dist, 1) * 100, 2),
+                'current_avg': round(recent_avg_dist, 2),
+                'status': 'improving' if recent_avg_dist < older_avg_dist else 'declining' if recent_avg_dist > older_avg_dist else 'stable'
+            }
+        
+        # Productivity progress
+        if recent and older:
+            recent_avg_prod = sum(s.get('productivity_score', 0) for s in recent) / len(recent)
+            older_avg_prod = sum(s.get('productivity_score', 0) for s in older) / len(older) if older else recent_avg_prod
+            
+            progress['productivity'] = {
+                'improvement': round((recent_avg_prod - older_avg_prod) / max(older_avg_prod, 1) * 100, 2),
+                'current_avg': round(recent_avg_prod, 2),
+                'status': 'improving' if recent_avg_prod > older_avg_prod else 'declining' if recent_avg_prod < older_avg_prod else 'stable'
+            }
+        
+        return progress
+    
+    def clear_cache(self) -> None:
+        """Clear all cached data"""
+        self._cache.clear()
+        self._cache_time.clear()
+        logger.info("Cache cleared")
