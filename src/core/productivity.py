@@ -4,6 +4,8 @@ Enterprise-grade productivity calculations with statistical analysis
 """
 
 import logging
+import csv
+import os
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -11,7 +13,6 @@ from statistics import mean, median, stdev
 from enum import Enum
 import math
 import numpy as np
-from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
@@ -44,17 +45,21 @@ class ProductivityEngine:
     - Data export
     """
     
+    # Configuration constants
+    CACHE_TTL_MINUTES = 5
+    TREND_IMPROVING_THRESHOLD = 1.05
+    TREND_DECLINING_THRESHOLD = 0.95
+    STREAK_ON_FIRE_THRESHOLD = 5
+    STREAK_BUILDING_THRESHOLD = 2
+    OPTIMAL_HOURS_LIMIT = 6
+    MAX_SESSIONS_FOR_ANALYSIS = 1000
+    
     def __init__(self, storage):
-        """
-        Initialize productivity engine
-        
-        Args:
-            storage: Storage instance for data access
-        """
+        """Initialize productivity engine"""
         self.storage = storage
         self._cache = {}
         self._cache_time = {}
-        self._cache_ttl = timedelta(minutes=5)
+        self._cache_ttl = timedelta(minutes=self.CACHE_TTL_MINUTES)
         logger.info("ProductivityEngine initialized")
     
     def _get_cached(self, key: str, func, *args, **kwargs):
@@ -69,13 +74,28 @@ class ProductivityEngine:
         return result
     
     def _validate_sessions(self, sessions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Validate and filter sessions"""
-        return [
-            s for s in sessions
-            if isinstance(s.get('duration'), (int, float))
-            and isinstance(s.get('productivity_score'), (int, float))
-            and s.get('timestamp')
-        ]
+        """Validate and filter sessions with size limit"""
+        if len(sessions) > self.MAX_SESSIONS_FOR_ANALYSIS:
+            logger.warning(f"Large dataset: {len(sessions)} sessions. Limiting to {self.MAX_SESSIONS_FOR_ANALYSIS}")
+            sessions = sessions[-self.MAX_SESSIONS_FOR_ANALYSIS:]
+        
+        valid_sessions = []
+        for s in sessions:
+            try:
+                duration = s.get('duration')
+                score = s.get('productivity_score')
+                timestamp = s.get('timestamp')
+                
+                if (isinstance(duration, (int, float)) and 
+                    isinstance(score, (int, float)) and 
+                    timestamp and
+                    not math.isnan(float(score)) and
+                    not math.isnan(float(duration))):
+                    valid_sessions.append(s)
+            except (ValueError, TypeError):
+                continue
+        
+        return valid_sessions
     
     def _get_date_key(self, timestamp: str, period: str = 'day') -> str:
         """Extract date key based on period"""
@@ -95,19 +115,24 @@ class ProductivityEngine:
         if not values:
             return {}
         
+        clean_values = [v for v in values if not math.isnan(float(v))]
+        
+        if not clean_values:
+            return {}
+        
         return {
-            'mean': round(mean(values), 2),
-            'median': round(median(values), 2),
-            'std': round(stdev(values), 2) if len(values) > 1 else 0,
-            'min': min(values),
-            'max': max(values),
-            'range': round(max(values) - min(values), 2),
-            'q1': round(np.percentile(values, 25), 2) if len(values) > 1 else 0,
-            'q3': round(np.percentile(values, 75), 2) if len(values) > 1 else 0,
-            'iqr': round(np.percentile(values, 75) - np.percentile(values, 25), 2) if len(values) > 1 else 0,
-            'skewness': round(self._calculate_skewness(values), 2),
-            'kurtosis': round(self._calculate_kurtosis(values), 2),
-            'count': len(values)
+            'mean': round(mean(clean_values), 2),
+            'median': round(median(clean_values), 2),
+            'std': round(stdev(clean_values), 2) if len(clean_values) > 1 else 0,
+            'min': min(clean_values),
+            'max': max(clean_values),
+            'range': round(max(clean_values) - min(clean_values), 2),
+            'q1': round(np.percentile(clean_values, 25), 2) if len(clean_values) > 1 else 0,
+            'q3': round(np.percentile(clean_values, 75), 2) if len(clean_values) > 1 else 0,
+            'iqr': round(np.percentile(clean_values, 75) - np.percentile(clean_values, 25), 2) if len(clean_values) > 1 else 0,
+            'skewness': round(self._calculate_skewness(clean_values), 2),
+            'kurtosis': round(self._calculate_kurtosis(clean_values), 2),
+            'count': len(clean_values)
         }
     
     def _calculate_skewness(self, values: List[float]) -> float:
@@ -134,6 +159,13 @@ class ProductivityEngine:
     
     def get_performance_grade(self, score: float) -> Dict[str, Any]:
         """Get performance grade"""
+        try:
+            score = float(score)
+            if math.isnan(score):
+                return {'grade': 'F', 'message': PerformanceGrade.F.message}
+        except:
+            return {'grade': 'F', 'message': PerformanceGrade.F.message}
+        
         if score >= 90:
             return {'grade': 'A', 'message': PerformanceGrade.A.message}
         elif score >= 80:
@@ -146,25 +178,21 @@ class ProductivityEngine:
             return {'grade': 'F', 'message': PerformanceGrade.F.message}
     
     def calculate_streak(self, sessions: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Calculate current study streak
-        
-        Returns:
-            Dictionary with streak information
-        """
+        """Calculate current study streak"""
         if not sessions:
             return {'current_streak': 0, 'best_streak': 0, 'streak_status': '🌱 Starting'}
         
-        # Group by date
         dates = set()
         for s in sessions:
             if s.get('timestamp'):
-                date = datetime.fromisoformat(s['timestamp']).date()
-                dates.add(date)
+                try:
+                    date = datetime.fromisoformat(s['timestamp']).date()
+                    dates.add(date)
+                except:
+                    continue
         
         sorted_dates = sorted(dates)
         
-        # Calculate current streak
         current_streak = 0
         best_streak = 0
         streak = 0
@@ -183,7 +211,6 @@ class ProductivityEngine:
         if streak > best_streak:
             best_streak = streak
         
-        # Check if today has sessions
         today = datetime.now().date()
         if today in dates:
             current_streak = streak
@@ -194,11 +221,18 @@ class ProductivityEngine:
             else:
                 current_streak = 0
         
+        if current_streak >= self.STREAK_ON_FIRE_THRESHOLD:
+            status = '🔥 On fire!'
+        elif current_streak >= self.STREAK_BUILDING_THRESHOLD:
+            status = '💪 Building'
+        else:
+            status = '🌱 Starting'
+        
         return {
             'current_streak': current_streak,
             'best_streak': best_streak,
             'total_days': len(dates),
-            'streak_status': '🔥 On fire!' if current_streak >= 5 else '💪 Building' if current_streak >= 2 else '🌱 Starting'
+            'streak_status': status
         }
     
     def calculate_daily_summary(self, date: Optional[str] = None) -> Optional[Dict[str, Any]]:
@@ -221,7 +255,6 @@ class ProductivityEngine:
         total_distractions = sum(s.get('distractions', 0) for s in sessions)
         avg_productivity = mean(s['productivity_score'] for s in sessions)
         
-        # Subject distribution
         subjects = defaultdict(int)
         subject_productivity = defaultdict(list)
         for s in sessions:
@@ -231,7 +264,6 @@ class ProductivityEngine:
         best_subject = max(subject_productivity.items(), key=lambda x: mean(x[1])) if subject_productivity else None
         worst_subject = min(subject_productivity.items(), key=lambda x: mean(x[1])) if subject_productivity else None
         
-        # Session timing analysis
         hour_distribution = defaultdict(int)
         for s in sessions:
             hour = datetime.fromisoformat(s['timestamp']).hour
@@ -239,7 +271,6 @@ class ProductivityEngine:
         
         peak_hour = max(hour_distribution.items(), key=lambda x: x[1]) if hour_distribution else None
         
-        # Calculate consistency score
         if len(sessions) > 1:
             productivity_values = [s['productivity_score'] for s in sessions]
             consistency = 100 - (stdev(productivity_values) / 100 * 100)
@@ -247,7 +278,6 @@ class ProductivityEngine:
         else:
             consistency = 100
         
-        # Get grade
         grade = self.get_performance_grade(avg_productivity)
         
         return {
@@ -279,12 +309,16 @@ class ProductivityEngine:
         if len(values) < 2:
             return 'neutral'
         
-        first_half = mean(values[:len(values)//2])
-        second_half = mean(values[len(values)//2:])
+        clean_values = [v for v in values if not math.isnan(float(v))]
+        if len(clean_values) < 2:
+            return 'neutral'
         
-        if second_half > first_half * 1.05:
+        first_half = mean(clean_values[:len(clean_values)//2])
+        second_half = mean(clean_values[len(clean_values)//2:])
+        
+        if second_half > first_half * self.TREND_IMPROVING_THRESHOLD:
             return 'improving'
-        elif second_half < first_half * 0.95:
+        elif second_half < first_half * self.TREND_DECLINING_THRESHOLD:
             return 'declining'
         return 'stable'
     
@@ -296,7 +330,6 @@ class ProductivityEngine:
         avg_score = mean(s['productivity_score'] for s in sessions)
         consistency = min(100, max(0, len(sessions) / 10 * 10))
         
-        # Weighted scoring
         score = (avg_score * 0.7) + (consistency * 0.3)
         return round(score)
     
@@ -313,7 +346,6 @@ class ProductivityEngine:
         if not sessions:
             return {'error': 'No sessions found', 'total_sessions': 0}
         
-        # Group by week
         weekly_data = defaultdict(list)
         for s in sessions:
             week_key = self._get_date_key(s['timestamp'], 'week')
@@ -370,16 +402,11 @@ class ProductivityEngine:
     
     def analyze_subject_performance(self) -> Dict[str, Any]:
         """Analyze performance by subject"""
-        cache_key = "subject_performance"
-        return self._get_cached(cache_key, self._analyze_subject_performance)
-    
-    def _analyze_subject_performance(self) -> Dict[str, Any]:
-        """Internal method to analyze subject performance"""
         sessions = self.storage.load_all_sessions()
         sessions = self._validate_sessions(sessions)
         
         if not sessions:
-            return {'error': 'No sessions found'}
+            return {'error': 'No sessions found', 'subjects': [], 'total_subjects': 0}
         
         subject_data = defaultdict(lambda: {
             'sessions': 0,
@@ -390,22 +417,34 @@ class ProductivityEngine:
         
         for s in sessions:
             subject = s.get('subject', 'Unknown')
+            if not subject:
+                subject = 'Unknown'
             subject_data[subject]['sessions'] += 1
-            subject_data[subject]['total_time'] += s['duration']
-            subject_data[subject]['productivity_scores'].append(s['productivity_score'])
+            subject_data[subject]['total_time'] += s.get('duration', 0)
+            subject_data[subject]['productivity_scores'].append(s.get('productivity_score', 0))
             subject_data[subject]['distractions'].append(s.get('distractions', 0))
         
         subject_metrics = {}
         for subject, data in subject_data.items():
+            if data['productivity_scores']:
+                avg_prod = mean(data['productivity_scores'])
+                max_prod = max(data['productivity_scores'])
+                min_prod = min(data['productivity_scores'])
+                avg_dist = mean(data['distractions'])
+            else:
+                avg_prod = 0
+                max_prod = 0
+                min_prod = 0
+                avg_dist = 0
+            
             subject_metrics[subject] = {
                 'sessions': data['sessions'],
                 'total_time': data['total_time'],
-                'avg_productivity': round(mean(data['productivity_scores']), 2),
-                'max_productivity': max(data['productivity_scores']),
-                'min_productivity': min(data['productivity_scores']),
-                'avg_distractions': round(mean(data['distractions']), 2),
-                'total_distractions': sum(data['distractions']),
-                'grade': self.get_performance_grade(mean(data['productivity_scores']))
+                'avg_productivity': round(avg_prod, 2),
+                'max_productivity': round(max_prod, 2),
+                'min_productivity': round(min_prod, 2),
+                'avg_distractions': round(avg_dist, 2),
+                'total_distractions': sum(data['distractions'])
             }
         
         sorted_subjects = sorted(
@@ -432,10 +471,13 @@ class ProductivityEngine:
         sessions = self._validate_sessions(sessions)
         
         cutoff_date = datetime.now() - timedelta(days=days)
-        filtered_sessions = [
-            s for s in sessions
-            if datetime.fromisoformat(s['timestamp']) >= cutoff_date
-        ]
+        filtered_sessions = []
+        for s in sessions:
+            try:
+                if datetime.fromisoformat(s['timestamp']) >= cutoff_date:
+                    filtered_sessions.append(s)
+            except:
+                continue
         
         if not filtered_sessions:
             return {'error': 'No sessions in range', 'total_sessions': 0}
@@ -496,12 +538,15 @@ class ProductivityEngine:
         
         hour_data = defaultdict(list)
         for s in sessions:
-            hour = datetime.fromisoformat(s['timestamp']).hour
-            hour_data[hour].append({
-                'productivity': s['productivity_score'],
-                'duration': s['duration'],
-                'subject': s.get('subject', 'Unknown')
-            })
+            try:
+                hour = datetime.fromisoformat(s['timestamp']).hour
+                hour_data[hour].append({
+                    'productivity': s['productivity_score'],
+                    'duration': s['duration'],
+                    'subject': s.get('subject', 'Unknown')
+                })
+            except:
+                continue
         
         hour_metrics = {}
         for hour, data in hour_data.items():
@@ -526,7 +571,7 @@ class ProductivityEngine:
         peak_periods = []
         current_period = []
         
-        for hour, metrics in sorted_hours[:6]:
+        for hour, metrics in sorted_hours[:self.OPTIMAL_HOURS_LIMIT]:
             if not current_period or hour == current_period[-1][0] + 1:
                 current_period.append((hour, metrics))
             else:
@@ -578,19 +623,7 @@ class ProductivityEngine:
         return f"Your peak productivity time is {best_hour:02d}:00 ({time_period}) with {best_score}% average productivity. Schedule your most important tasks during this time for optimal results!"
     
     def export_to_csv(self, sessions: List[Dict[str, Any]], filename: str = None) -> str:
-        """
-        Export sessions to CSV
-        
-        Args:
-            sessions: List of session dictionaries
-            filename: Optional filename
-            
-        Returns:
-            Path to exported file
-        """
-        import csv
-        import os
-        
+        """Export sessions to CSV"""
         if not sessions:
             raise ValueError("No sessions to export")
         
@@ -609,17 +642,7 @@ class ProductivityEngine:
         return filepath
     
     def compare_periods(self, period1: str, period2: str, period_type: str = 'week') -> Dict[str, Any]:
-        """
-        Compare two time periods
-        
-        Args:
-            period1: First period (YYYY-MM-DD or YYYY-WW)
-            period2: Second period (YYYY-MM-DD or YYYY-WW)
-            period_type: 'day' or 'week'
-            
-        Returns:
-            Comparison results
-        """
+        """Compare two time periods"""
         sessions = self.storage.load_all_sessions()
         sessions = self._validate_sessions(sessions)
         
@@ -649,6 +672,51 @@ class ProductivityEngine:
             'grade1': self.get_performance_grade(p1_avg),
             'grade2': self.get_performance_grade(p2_avg)
         }
+    
+    def get_performance_summary(self) -> Dict[str, Any]:
+        """Get a quick performance summary"""
+        sessions = self.storage.load_all_sessions()
+        sessions = self._validate_sessions(sessions)
+        
+        if not sessions:
+            return {'error': 'No sessions found'}
+        
+        scores = [s.get('productivity_score', 0) for s in sessions if s.get('productivity_score') is not None]
+        
+        return {
+            'total_sessions': len(sessions),
+            'avg_productivity': round(mean(scores), 2) if scores else 0,
+            'best_session': max(scores) if scores else 0,
+            'worst_session': min(scores) if scores else 0,
+            'grade': self.get_performance_grade(mean(scores)) if scores else {'grade': 'F', 'message': 'No data'},
+            'streak': self.calculate_streak(sessions),
+            'total_time': sum(s.get('duration', 0) for s in sessions),
+            'subjects': len(set(s.get('subject', 'Unknown') for s in sessions))
+        }
+    
+    def export_to_excel(self, sessions: List[Dict[str, Any]], filename: str = None) -> Optional[str]:
+        """Export sessions to Excel"""
+        try:
+            import pandas as pd
+            
+            if not sessions:
+                raise ValueError("No sessions to export")
+            
+            if filename is None:
+                filename = f"study_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            
+            os.makedirs('exports', exist_ok=True)
+            filepath = os.path.join('exports', filename)
+            
+            df = pd.DataFrame(sessions)
+            df.to_excel(filepath, index=False, engine='openpyxl')
+            
+            logger.info(f"Exported {len(sessions)} sessions to {filepath}")
+            return filepath
+            
+        except ImportError:
+            logger.warning("pandas or openpyxl not installed. Install with: pip install pandas openpyxl")
+            return None
     
     def clear_cache(self) -> None:
         """Clear all cached data"""
