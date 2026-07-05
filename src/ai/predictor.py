@@ -21,11 +21,26 @@ class AIPredictor:
     - Trend forecasting
     - Session count prediction
     - Risk assessment
+    - Optimal session length prediction
     """
     
     def __init__(self):
-        """Initialize the predictor"""
+        """Initialize the predictor with cache"""
+        self._cache = {}
+        self._cache_time = {}
+        self._cache_ttl = timedelta(minutes=5)
         logger.info("AIPredictor initialized")
+    
+    def _get_cached(self, key: str, func, *args, **kwargs):
+        """Get cached data or compute fresh"""
+        if key in self._cache:
+            if datetime.now() - self._cache_time[key] < self._cache_ttl:
+                return self._cache[key]
+        
+        result = func(*args, **kwargs)
+        self._cache[key] = result
+        self._cache_time[key] = datetime.now()
+        return result
     
     def predict_weekly_productivity(self, sessions: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
@@ -37,49 +52,54 @@ class AIPredictor:
         Returns:
             Dictionary with predictions
         """
-        if len(sessions) < 7:
+        # Reduce minimum sessions to 5
+        if len(sessions) < 5:
             return {
                 'error': 'Insufficient data',
-                'message': 'Need at least 7 sessions for prediction'
+                'message': f'Need at least 5 sessions, have {len(sessions)}'
             }
         
         try:
-            # Extract productivity scores
             scores = [s.get('productivity_score', 0) for s in sessions if s.get('productivity_score') is not None]
             
-            if len(scores) < 5:
+            if len(scores) < 3:
                 return {'error': 'Insufficient productivity data'}
             
-            # Simple moving average prediction
-            window = min(7, len(scores) // 2)
+            window = min(5, len(scores) // 2)
             recent_scores = scores[-window:]
             
-            # Calculate trend
+            slope = 0
+            predicted = sum(recent_scores) / len(recent_scores)
+            
             if len(recent_scores) > 1:
                 x = np.arange(len(recent_scores))
                 y = np.array(recent_scores)
                 z = np.polyfit(x, y, 1)
                 slope = z[0]
                 intercept = z[1]
-                
-                # Predict next value
                 next_x = len(recent_scores)
                 predicted = slope * next_x + intercept
                 predicted = max(0, min(100, predicted))
-            else:
-                predicted = sum(recent_scores) / len(recent_scores)
             
-            # Calculate confidence
             std = np.std(recent_scores) if len(recent_scores) > 1 else 10
             confidence = 70 - (std / 2)
             confidence = max(40, min(95, confidence))
             
+            # Trend interpretation
+            if slope > 1:
+                trend = 'improving'
+            elif slope < -1:
+                trend = 'declining'
+            else:
+                trend = 'stable'
+            
             return {
                 'predicted_productivity': round(predicted, 2),
                 'confidence': round(confidence, 2),
-                'trend': 'improving' if slope > 0 else 'declining' if slope < 0 else 'stable',
+                'trend': trend,
                 'based_on': len(recent_scores),
-                'current_avg': round(np.mean(scores), 2)
+                'current_avg': round(np.mean(scores), 2),
+                'explanation': self._explain_prediction(predicted, confidence, trend)
             }
             
         except Exception as e:
@@ -96,20 +116,20 @@ class AIPredictor:
         Returns:
             Dictionary with predictions
         """
-        if len(sessions) < 7:
+        if len(sessions) < 5:
             return {
                 'error': 'Insufficient data',
-                'message': 'Need at least 7 sessions for prediction'
+                'message': f'Need at least 5 sessions, have {len(sessions)}'
             }
         
         try:
-            # Group by week
+            # Group by week with year to avoid boundary issues
             weekly_counts = defaultdict(int)
             for s in sessions:
                 if s.get('timestamp'):
                     date = datetime.fromisoformat(s['timestamp'])
-                    week = date.isocalendar().week
-                    weekly_counts[week] += 1
+                    week_key = date.strftime('%Y-W%W')  # Include year
+                    weekly_counts[week_key] += 1
             
             if not weekly_counts:
                 return {'error': 'No weekly data'}
@@ -118,8 +138,8 @@ class AIPredictor:
             avg_count = np.mean(counts)
             std_count = np.std(counts) if len(counts) > 1 else 0
             
-            # Predict next week
             predicted = avg_count
+            trend = 'increasing' if avg_count > (avg_count - std_count) else 'stable'
             
             return {
                 'predicted_sessions': round(predicted, 1),
@@ -129,7 +149,7 @@ class AIPredictor:
                 },
                 'current_avg': round(avg_count, 1),
                 'based_on': len(weekly_counts),
-                'trend': 'increasing' if avg_count > (avg_count - std_count) else 'decreasing'
+                'trend': trend
             }
             
         except Exception as e:
@@ -146,14 +166,13 @@ class AIPredictor:
         Returns:
             Dictionary with time predictions
         """
-        if len(sessions) < 10:
+        if len(sessions) < 8:
             return {
                 'error': 'Insufficient data',
-                'message': 'Need at least 10 sessions for accurate prediction'
+                'message': f'Need 8 sessions, have {len(sessions)}'
             }
         
         try:
-            # Extract hour and productivity
             hour_scores = defaultdict(list)
             for s in sessions:
                 if s.get('timestamp') and s.get('productivity_score'):
@@ -163,15 +182,11 @@ class AIPredictor:
             if not hour_scores:
                 return {'error': 'No hourly data'}
             
-            # Calculate average per hour
             hourly_avg = {}
             for hour, scores in hour_scores.items():
                 hourly_avg[hour] = np.mean(scores)
             
-            # Find best hours
             sorted_hours = sorted(hourly_avg.items(), key=lambda x: x[1], reverse=True)
-            
-            # Predict best 3 hour windows
             best_hours = sorted_hours[:3]
             
             return {
@@ -201,22 +216,19 @@ class AIPredictor:
         Returns:
             Dictionary with risk assessment
         """
-        if len(sessions) < 7:
+        if len(sessions) < 5:
             return {
                 'error': 'Insufficient data',
-                'message': 'Need at least 7 sessions for risk assessment'
+                'message': f'Need 5 sessions, have {len(sessions)}'
             }
         
         try:
-            # Calculate metrics
             recent = sessions[-10:] if len(sessions) > 10 else sessions
             
-            # Distraction risk
             distractions = [s.get('distractions', 0) for s in recent]
             high_distraction = sum(1 for d in distractions if d > 5)
             distraction_risk = high_distraction / len(recent) if recent else 0
             
-            # Productivity risk
             scores = [s.get('productivity_score', 0) for s in recent if s.get('productivity_score') is not None]
             if scores:
                 low_productivity = sum(1 for s in scores if s < 50)
@@ -224,10 +236,8 @@ class AIPredictor:
             else:
                 productivity_risk = 0
             
-            # Overall risk
             risk_score = (distraction_risk * 0.4 + productivity_risk * 0.6) * 100
             
-            # Risk level
             if risk_score > 60:
                 risk_level = "High"
                 recommendation = "⚠️ High risk of low productivity. Focus on reducing distractions!"
@@ -251,6 +261,67 @@ class AIPredictor:
             logger.error(f"Risk prediction error: {e}")
             return {'error': str(e)}
     
+    def predict_optimal_session_length(self, sessions: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Predict optimal session length based on productivity data
+        
+        Args:
+            sessions: List of session dictionaries
+            
+        Returns:
+            Dictionary with optimal session length prediction
+        """
+        if len(sessions) < 5:
+            return {'error': 'Insufficient data', 'message': 'Need at least 5 sessions'}
+        
+        try:
+            duration_scores = defaultdict(list)
+            for s in sessions:
+                if s.get('duration') and s.get('productivity_score'):
+                    duration = s['duration']
+                    duration_bin = round(duration / 5) * 5
+                    duration_scores[duration_bin].append(s['productivity_score'])
+            
+            duration_avg = {
+                dur: np.mean(scores) 
+                for dur, scores in duration_scores.items()
+            }
+            
+            if duration_avg:
+                optimal_duration = max(duration_avg.items(), key=lambda x: x[1])
+                return {
+                    'optimal_duration': optimal_duration[0],
+                    'avg_productivity': round(optimal_duration[1], 2),
+                    'based_on': len(duration_scores)
+                }
+            return {'error': 'No valid duration data'}
+            
+        except Exception as e:
+            logger.error(f"Optimal session length prediction error: {e}")
+            return {'error': str(e)}
+    
+    def _explain_prediction(self, predicted: float, confidence: float, trend: str) -> str:
+        """Generate human-readable explanation of prediction"""
+        explanation = []
+        
+        if trend == 'improving':
+            explanation.append("📈 Your productivity trend is improving. Keep up the good work!")
+        elif trend == 'declining':
+            explanation.append("📉 Your productivity trend is declining. Consider changing your study habits!")
+        else:
+            explanation.append("➡️ Your productivity trend is stable. Consistency is key!")
+        
+        explanation.append(f"🎯 Prediction confidence: {confidence}%")
+        
+        if predicted >= 80:
+            explanation.append("🌟 You're likely to maintain high productivity next week!")
+        elif predicted >= 60:
+            explanation.append("📊 You're likely to have moderate productivity next week.")
+        else:
+            explanation.append("💡 Consider adjusting your study routine for better productivity.")
+        
+        return " ".join(explanation)
+    
     def predict_all(self, sessions: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Generate all predictions
@@ -265,5 +336,12 @@ class AIPredictor:
             'productivity': self.predict_weekly_productivity(sessions),
             'session_count': self.predict_session_count(sessions),
             'best_time': self.predict_best_time(sessions),
-            'risk': self.predict_risk_score(sessions)
+            'risk': self.predict_risk_score(sessions),
+            'optimal_session_length': self.predict_optimal_session_length(sessions)
         }
+    
+    def clear_cache(self) -> None:
+        """Clear all cached data"""
+        self._cache.clear()
+        self._cache_time.clear()
+        logger.info("Cache cleared")
