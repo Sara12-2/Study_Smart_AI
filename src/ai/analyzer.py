@@ -73,7 +73,7 @@ class AIAnalyzer:
         
         # 🔥 FIX: Clean NaN values from productivity_score
         df = df.copy()
-        df['productivity_score'] = df['productivity_score'].fillna(0)
+        df['productivity_score'] = pd.to_numeric(df['productivity_score'], errors='coerce').fillna(0)
         
         results = {
             'overall_stats': {},
@@ -88,6 +88,9 @@ class AIAnalyzer:
         scores = df['productivity_score'].dropna()
         if len(scores) == 0:
             return {'error': 'No valid productivity scores'}
+        
+        # Ensure all scores are numeric
+        scores = scores.astype(float)
         
         results['overall_stats'] = {
             'mean': round(float(mean(scores)), 2),
@@ -298,25 +301,51 @@ class AIAnalyzer:
                 except (ValueError, TypeError):
                     continue
         
+        # If less than 5 sessions, return empty insights
         if len(valid_sessions) < 5:
             return {
-                'error': 'Insufficient data',
-                'message': f'Need 5 valid sessions, have {len(valid_sessions)}',
-                'current_sessions': len(valid_sessions)
+                'patterns': {},
+                'analysis': {
+                    'overall_stats': {'mean': 0, 'median': 0, 'std': 0, 'min': 0, 'max': 0, 'q1': 0, 'q3': 0},
+                    'consistency': 0,
+                    'daily_patterns': {},
+                    'hourly_patterns': {},
+                    'weekly_patterns': {},
+                    'correlations': {},
+                    'anomalies': []
+                },
+                'total_sessions': len(valid_sessions),
+                'ai_confidence': 0,
+                'consistency': 0,
+                'recommendations': ['Add at least 5 sessions to get personalized AI insights!']
             }
         
         df = self.prepare_dataframe(valid_sessions)
         
         if df.empty:
             return {
-                'error': 'Insufficient data',
-                'message': 'No valid data found'
+                'patterns': {},
+                'analysis': {
+                    'overall_stats': {'mean': 0, 'median': 0, 'std': 0, 'min': 0, 'max': 0, 'q1': 0, 'q3': 0},
+                    'consistency': 0
+                },
+                'total_sessions': 0,
+                'ai_confidence': 0,
+                'consistency': 0,
+                'recommendations': ['No valid data found. Please add more sessions.']
             }
         
         if 'productivity_score' not in df.columns:
             return {
-                'error': 'Missing productivity scores',
-                'message': 'Sessions must have productivity_score field'
+                'patterns': {},
+                'analysis': {
+                    'overall_stats': {'mean': 0, 'median': 0, 'std': 0, 'min': 0, 'max': 0, 'q1': 0, 'q3': 0},
+                    'consistency': 0
+                },
+                'total_sessions': len(valid_sessions),
+                'ai_confidence': 0,
+                'consistency': 0,
+                'recommendations': ['Productivity scores missing. Please add sessions with productivity data.']
             }
         
         try:
@@ -363,8 +392,15 @@ class AIAnalyzer:
         except Exception as e:
             logger.error(f"Error generating insights: {e}")
             return {
-                'error': 'Analysis failed',
-                'message': str(e)
+                'patterns': {},
+                'analysis': {
+                    'overall_stats': {'mean': 0, 'median': 0, 'std': 0, 'min': 0, 'max': 0, 'q1': 0, 'q3': 0},
+                    'consistency': 0
+                },
+                'total_sessions': len(valid_sessions),
+                'ai_confidence': 0,
+                'consistency': 0,
+                'recommendations': ['Error generating insights. Please try again.']
             }
     
     def _calculate_confidence(self, df: pd.DataFrame) -> float:
@@ -387,20 +423,20 @@ class AIAnalyzer:
             hour = patterns['best_learning_time']['hour']
             productivity = patterns['best_learning_time']['avg_productivity']
             recommendations.append(
-                f"Schedule your study sessions around {hour:02d}:00 - you're {productivity}% productive then!"
+                f"⏰ Schedule your study sessions around {hour:02d}:00 - you're {productivity}% productive then!"
             )
         
         if patterns and patterns.get('optimal_session_length'):
             range_str = patterns['optimal_session_length']['range']
             productivity = patterns['optimal_session_length']['avg_productivity']
             recommendations.append(
-                f"Optimal session length: {range_str} - {productivity}% average productivity"
+                f"📚 Optimal session length: {range_str} - {productivity}% average productivity"
             )
         
         if patterns and patterns.get('most_consistent_subject'):
             subject = patterns['most_consistent_subject']['subject']
             recommendations.append(
-                f"You're most consistent with {subject} - keep it up!"
+                f"📖 You're most consistent with {subject} - keep it up!"
             )
         
         if patterns and patterns.get('distraction_patterns'):
@@ -408,40 +444,40 @@ class AIAnalyzer:
             zero_sessions = patterns['distraction_patterns'].get('zero_distraction_sessions', 0)
             if rate > 50:
                 recommendations.append(
-                    "You have distractions in most sessions. Try the Pomodoro technique (25 min focus, 5 min break)!"
+                    "🧘 You have distractions in most sessions. Try the Pomodoro technique (25 min focus, 5 min break)!"
                 )
             elif zero_sessions > 0:
                 recommendations.append(
-                    f"{zero_sessions} distraction-free sessions! Try to increase this!"
+                    f"🎯 {zero_sessions} distraction-free sessions! Try to increase this!"
                 )
         
         if patterns and patterns.get('mood_productivity_correlation'):
             corr = patterns['mood_productivity_correlation']
             if corr > 0.5:
                 recommendations.append(
-                    "Your mood strongly affects your productivity. Study when you're in a good mood!"
+                    "😊 Your mood strongly affects your productivity. Study when you're in a good mood!"
                 )
         
         if analysis and analysis.get('daily_patterns'):
             best_day = analysis['daily_patterns'].get('best_day')
             if best_day:
                 recommendations.append(
-                    f"Your best day is {best_day}. Plan important topics for this day!"
+                    f"📅 Your best day is {best_day}. Plan important topics for this day!"
                 )
         
         consistency = analysis.get('consistency', 0) if analysis else 0
         if consistency < 50:
             recommendations.append(
-                "Your productivity is inconsistent. Try to maintain a regular study schedule!"
+                "📈 Your productivity is inconsistent. Try to maintain a regular study schedule!"
             )
         elif consistency > 80:
             recommendations.append(
-                "Your productivity is very consistent! Excellent work!"
+                "🌟 Your productivity is very consistent! Excellent work!"
             )
         
         if not recommendations:
             recommendations.append(
-                "Keep tracking your sessions for personalized recommendations!"
+                "💡 Keep tracking your sessions for personalized recommendations!"
             )
         
         return recommendations
