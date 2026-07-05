@@ -31,11 +31,12 @@ class JSONStorage:
     - Export/Import
     - Cache management
     - Backup cleanup
+    - Configurable TTL
     """
     
     _instance = None
     _lock = threading.Lock()
-    _data_version = 2  # Current data version
+    _data_version = 2
     
     def __new__(cls, *args, **kwargs):
         """Singleton pattern implementation"""
@@ -47,7 +48,8 @@ class JSONStorage:
     
     def __init__(self, file_path: str = 'data/sessions.json', 
                  backup_dir: str = 'data/backups',
-                 max_backups: int = 20):
+                 max_backups: int = 20,
+                 cache_ttl_seconds: int = 5):
         """
         Initialize storage with file path and backup directory
         
@@ -55,6 +57,7 @@ class JSONStorage:
             file_path: Path to main JSON file
             backup_dir: Directory for backups
             max_backups: Maximum number of backups to keep
+            cache_ttl_seconds: Cache TTL in seconds
         """
         if hasattr(self, '_initialized') and self._initialized:
             return
@@ -64,13 +67,19 @@ class JSONStorage:
         self.max_backups = max_backups
         self._cache = None
         self._cache_timestamp = None
-        self._cache_ttl = timedelta(seconds=5)
+        self._cache_ttl = timedelta(seconds=cache_ttl_seconds)
         self._initialized = True
         
         self._ensure_directories()
         self._migrate_data_if_needed()
         self._create_backup_if_needed()
         self._cleanup_old_backups()
+        
+        # Auto-migrate productivity scores on startup
+        migrated = self.migrate_add_productivity_score()
+        if migrated > 0:
+            logger.info(f"✅ Auto-migrated {migrated} sessions with productivity_score")
+        
         logger.info(f"Storage initialized: {file_path}")
     
     def _ensure_directories(self) -> None:
@@ -94,7 +103,6 @@ class JSONStorage:
             with open(self.file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
-            # Check if data has version field
             if isinstance(data, dict) and '_version' in data:
                 version = data.get('_version', 1)
                 sessions = data.get('sessions', [])
@@ -172,13 +180,7 @@ class JSONStorage:
                 os.remove(lock_file)
     
     def _read_data(self) -> List[Dict[str, Any]]:
-        """
-        Read data from file with caching
-        
-        Returns:
-            List of session dictionaries
-        """
-        # Check cache
+        """Read data from file with caching"""
         if self._cache and self._cache_timestamp:
             if datetime.now() - self._cache_timestamp < self._cache_ttl:
                 return self._cache
@@ -188,7 +190,6 @@ class JSONStorage:
                 with open(self.file_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     
-                    # Handle versioned data
                     if isinstance(data, dict) and '_version' in data:
                         sessions = data.get('sessions', [])
                     else:
@@ -211,14 +212,8 @@ class JSONStorage:
             return []
     
     def _write_data(self, data: List[Dict[str, Any]]) -> None:
-        """
-        Write data to file with atomic operation
-        
-        Args:
-            data: List of session dictionaries
-        """
+        """Write data to file with atomic operation"""
         try:
-            # Prepare data with version
             versioned_data = {
                 '_version': self._data_version,
                 'sessions': data,
@@ -226,16 +221,13 @@ class JSONStorage:
                 'total_sessions': len(data)
             }
             
-            # Write to temp file first (atomic operation)
             temp_file = f"{self.file_path}.tmp"
             with self._file_lock():
                 with open(temp_file, 'w', encoding='utf-8') as f:
                     json.dump(versioned_data, f, indent=2, ensure_ascii=False, default=str)
                 
-                # Replace original with temp
                 shutil.move(temp_file, self.file_path)
                 
-            # Update cache
             self._cache = data
             self._cache_timestamp = datetime.now()
             logger.debug(f"Data written successfully: {len(data)} records")
@@ -267,26 +259,85 @@ class JSONStorage:
     
     def _validate_session_data(self, session_dict: Dict[str, Any]) -> bool:
         """Validate session data before saving"""
-        required_fields = ['subject', 'duration', 'productivity_score', 'timestamp']
+        required_fields = ['subject', 'duration', 'timestamp']
         
-        # Check required fields
         for field in required_fields:
             if field not in session_dict:
                 raise ValueError(f"Missing required field: {field}")
         
-        # Validate data types
         if not isinstance(session_dict['duration'], (int, float)):
             raise TypeError("Duration must be a number")
-        if not isinstance(session_dict['productivity_score'], (int, float)):
-            raise TypeError("Productivity score must be a number")
         
-        # Validate ranges
+        if 'productivity_score' in session_dict and session_dict['productivity_score'] is not None:
+            if not isinstance(session_dict['productivity_score'], (int, float)):
+                raise TypeError("Productivity score must be a number")
+            if not (0 <= session_dict['productivity_score'] <= 100):
+                raise ValueError("Productivity score must be between 0 and 100")
+        
         if not (5 <= session_dict['duration'] <= 240):
             raise ValueError("Duration must be between 5 and 240 minutes")
-        if not (0 <= session_dict['productivity_score'] <= 100):
-            raise ValueError("Productivity score must be between 0 and 100")
+        
+        # Validate session_id if present
+        if 'session_id' in session_dict:
+            if not isinstance(session_dict['session_id'], str) or len(session_dict['session_id']) != 8:
+                raise ValueError("session_id must be an 8-character string")
         
         return True
+    
+    # ==========================================
+    # MIGRATION METHODS
+    # ==========================================
+    
+    def migrate_add_productivity_score(self) -> int:
+        """
+        Add productivity_score to existing sessions that don't have it
+        
+        Returns:
+            Number of sessions migrated
+        """
+        from src.core.session import StudySession
+        
+        sessions = self.load_all_sessions()
+        migrated = 0
+        
+        for session in sessions:
+            if 'productivity_score' not in session or session.get('productivity_score') is None:
+                try:
+                    # Create temp session to calculate score
+                    temp = StudySession(
+                        subject=session.get('subject', 'Unknown'),
+                        duration=session.get('duration', 30),
+                        distractions=session.get('distractions', 0),
+                        notes=session.get('notes'),
+                        mood=session.get('mood')
+                    )
+                    session['productivity_score'] = temp.productivity_score
+                    migrated += 1
+                except Exception as e:
+                    logger.error(f"Failed to migrate session {session.get('id', 'unknown')}: {e}")
+                    session['productivity_score'] = 50  # Default fallback
+        
+        if migrated > 0:
+            self._write_data(sessions)
+            logger.info(f"✅ Migrated {migrated} sessions with productivity_score")
+        
+        return migrated
+    
+    def add_session_id_to_old_sessions(self) -> int:
+        """Add session_id to old sessions that don't have it"""
+        sessions = self.load_all_sessions()
+        migrated = 0
+        
+        for session in sessions:
+            if 'session_id' not in session:
+                session['session_id'] = str(uuid.uuid4())[:8]
+                migrated += 1
+        
+        if migrated > 0:
+            self._write_data(sessions)
+            logger.info(f"✅ Added session_id to {migrated} sessions")
+        
+        return migrated
     
     # ==========================================
     # PUBLIC METHODS
@@ -295,14 +346,11 @@ class JSONStorage:
     def save_session(self, session_dict: Dict[str, Any]) -> bool:
         """Save a single session"""
         try:
-            # Validate session data
             self._validate_session_data(session_dict)
             
-            # Add session_id if missing
             if 'session_id' not in session_dict:
                 session_dict['session_id'] = str(uuid.uuid4())[:8]
             
-            # Convert enum to string if present
             if 'status' in session_dict and hasattr(session_dict['status'], 'value'):
                 session_dict['status'] = session_dict['status'].value
             
@@ -317,15 +365,7 @@ class JSONStorage:
             return False
     
     def save_sessions(self, sessions: List[Dict[str, Any]]) -> bool:
-        """
-        Save multiple sessions at once
-        
-        Args:
-            sessions: List of session dictionaries
-            
-        Returns:
-            bool: True if successful
-        """
+        """Save multiple sessions at once"""
         try:
             current = self._read_data()
             current.extend(sessions)
@@ -337,39 +377,18 @@ class JSONStorage:
             return False
     
     def load_all_sessions(self) -> List[Dict[str, Any]]:
-        """
-        Load all sessions
-        
-        Returns:
-            List of session dictionaries
-        """
+        """Load all sessions"""
         return self._read_data()
     
     def get_session_by_id(self, session_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Get session by index/id
-        
-        Args:
-            session_id: Index of session
-            
-        Returns:
-            Session dictionary or None
-        """
+        """Get session by index/id"""
         sessions = self._read_data()
         if 0 <= session_id < len(sessions):
             return sessions[session_id]
         return None
     
     def get_sessions_by_date(self, date: str) -> List[Dict[str, Any]]:
-        """
-        Get sessions for a specific date
-        
-        Args:
-            date: Date string in 'YYYY-MM-DD' format
-            
-        Returns:
-            List of sessions on that date
-        """
+        """Get sessions for a specific date"""
         sessions = self._read_data()
         return [
             s for s in sessions
@@ -377,15 +396,7 @@ class JSONStorage:
         ]
     
     def get_sessions_by_subject(self, subject: str) -> List[Dict[str, Any]]:
-        """
-        Get sessions for a specific subject
-        
-        Args:
-            subject: Subject name
-            
-        Returns:
-            List of sessions for that subject
-        """
+        """Get sessions for a specific subject"""
         sessions = self._read_data()
         return [
             s for s in sessions
@@ -393,16 +404,7 @@ class JSONStorage:
         ]
     
     def get_sessions_in_range(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
-        """
-        Get sessions in a date range
-        
-        Args:
-            start_date: Start date (YYYY-MM-DD)
-            end_date: End date (YYYY-MM-DD)
-            
-        Returns:
-            List of sessions in range
-        """
+        """Get sessions in a date range"""
         sessions = self._read_data()
         return [
             s for s in sessions
@@ -410,15 +412,7 @@ class JSONStorage:
         ]
     
     def delete_session(self, session_id: int) -> bool:
-        """
-        Delete a session by index
-        
-        Args:
-            session_id: Index of session to delete
-            
-        Returns:
-            bool: True if successful
-        """
+        """Delete a session by index"""
         try:
             sessions = self._read_data()
             if 0 <= session_id < len(sessions):
@@ -432,12 +426,7 @@ class JSONStorage:
             return False
     
     def clear_all_sessions(self) -> bool:
-        """
-        Clear all sessions
-        
-        Returns:
-            bool: True if successful
-        """
+        """Clear all sessions"""
         try:
             self._write_data([])
             logger.info("All sessions cleared")
@@ -451,12 +440,7 @@ class JSONStorage:
         return len(self._read_data())
     
     def get_statistics(self) -> Dict[str, Any]:
-        """
-        Get storage statistics
-        
-        Returns:
-            Dictionary with storage stats
-        """
+        """Get storage statistics"""
         sessions = self._read_data()
         return {
             'total_sessions': len(sessions),
@@ -466,12 +450,7 @@ class JSONStorage:
         }
     
     def create_backup(self) -> str:
-        """
-        Create manual backup
-        
-        Returns:
-            Path to backup file
-        """
+        """Create manual backup"""
         backup_file = os.path.join(
             self.backup_dir,
             f"sessions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
@@ -481,15 +460,7 @@ class JSONStorage:
         return backup_file
     
     def restore_from_backup(self, backup_file: str) -> bool:
-        """
-        Restore data from a backup file
-        
-        Args:
-            backup_file: Path to backup file
-            
-        Returns:
-            bool: True if successful
-        """
+        """Restore data from a backup file"""
         try:
             with open(backup_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -547,12 +518,11 @@ class JSONStorage:
         with open(filename, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                # Convert numeric fields
                 if 'duration' in row:
                     row['duration'] = int(row['duration'])
                 if 'distractions' in row:
                     row['distractions'] = int(row['distractions'])
-                if 'productivity_score' in row:
+                if 'productivity_score' in row and row['productivity_score']:
                     row['productivity_score'] = int(row['productivity_score'])
                 if 'mood' in row and row['mood']:
                     row['mood'] = int(row['mood'])
