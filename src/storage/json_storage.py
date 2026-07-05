@@ -340,6 +340,47 @@ class JSONStorage:
         return migrated
     
     # ==========================================
+    # USER SETTINGS METHODS (NEW)
+    # ==========================================
+    
+    def load_user_settings(self) -> Dict[str, Any]:
+        """
+        Load user settings from file
+        
+        Returns:
+            Dictionary with user settings
+        """
+        try:
+            settings_file = os.path.join(os.path.dirname(self.file_path), 'user_settings.json')
+            if os.path.exists(settings_file):
+                with open(settings_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading user settings: {e}")
+        return {}
+    
+    def save_user_settings(self, settings: Dict[str, Any]) -> bool:
+        """
+        Save user settings to file
+        
+        Args:
+            settings: Dictionary with user settings
+            
+        Returns:
+            True if saved successfully
+        """
+        try:
+            settings_file = os.path.join(os.path.dirname(self.file_path), 'user_settings.json')
+            os.makedirs(os.path.dirname(settings_file), exist_ok=True)
+            with open(settings_file, 'w', encoding='utf-8') as f:
+                json.dump(settings, f, indent=2, ensure_ascii=False)
+            logger.info(f"User settings saved: {settings_file}")
+            return True
+        except Exception as e:
+            logger.error(f"Error saving user settings: {e}")
+            return False
+    
+    # ==========================================
     # PUBLIC METHODS
     # ==========================================
     
