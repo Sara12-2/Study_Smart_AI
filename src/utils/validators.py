@@ -23,6 +23,11 @@ class Validator:
     MAX_DISTRACTIONS = 20
     MIN_MOOD = 1
     MAX_MOOD = 5
+    MIN_ENERGY = 1
+    MAX_ENERGY = 5
+    MIN_USERNAME_LENGTH = 3
+    MAX_USERNAME_LENGTH = 30
+    MIN_PASSWORD_LENGTH = 8
     
     @staticmethod
     def validate_subject(subject: str) -> bool:
@@ -99,6 +104,25 @@ class Validator:
         try:
             mood = int(mood)
             return Validator.MIN_MOOD <= mood <= Validator.MAX_MOOD
+        except (ValueError, TypeError):
+            return False
+    
+    @staticmethod
+    def validate_energy(energy: Any) -> bool:
+        """
+        Validate energy rating
+        
+        Args:
+            energy: Energy rating 1-5
+            
+        Returns:
+            True if valid
+        """
+        if energy is None:
+            return True
+        try:
+            energy = int(energy)
+            return Validator.MIN_ENERGY <= energy <= Validator.MAX_ENERGY
         except (ValueError, TypeError):
             return False
     
@@ -264,6 +288,50 @@ class Validator:
         return True
     
     @staticmethod
+    def validate_username(username: str) -> bool:
+        """
+        Validate username
+        
+        Args:
+            username: Username string
+            
+        Returns:
+            True if valid
+        """
+        if not username:
+            return False
+        if len(username) < Validator.MIN_USERNAME_LENGTH or len(username) > Validator.MAX_USERNAME_LENGTH:
+            return False
+        if not re.match(r'^[a-zA-Z0-9_]+$', username):
+            return False
+        return True
+    
+    @staticmethod
+    def validate_password(password: str, min_length: int = MIN_PASSWORD_LENGTH) -> bool:
+        """
+        Validate password strength
+        
+        Args:
+            password: Password string
+            min_length: Minimum length
+            
+        Returns:
+            True if valid
+        """
+        if not password:
+            return False
+        if len(password) < min_length:
+            return False
+        # At least one uppercase, one lowercase, one digit
+        if not re.search(r'[A-Z]', password):
+            return False
+        if not re.search(r'[a-z]', password):
+            return False
+        if not re.search(r'[0-9]', password):
+            return False
+        return True
+    
+    @staticmethod
     def validate_session_data(data: dict) -> List[str]:
         """
         Validate complete session data
@@ -291,6 +359,10 @@ class Validator:
         # Mood validation
         if 'mood' in data and not Validator.validate_mood(data['mood']):
             errors.append(f'Mood must be {Validator.MIN_MOOD}-{Validator.MAX_MOOD}')
+        
+        # Energy validation
+        if 'energy' in data and not Validator.validate_energy(data['energy']):
+            errors.append(f'Energy must be {Validator.MIN_ENERGY}-{Validator.MAX_ENERGY}')
         
         # Timestamp validation
         if 'timestamp' in data and not Validator.validate_timestamp(data['timestamp']):
@@ -393,3 +465,20 @@ class Validator:
         
         pattern = r'^https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+[/\w.-]*$'
         return bool(re.match(pattern, url))
+    
+    @staticmethod
+    def validate_enum_value(value: Any, enum_class: Any) -> bool:
+        """
+        Validate if value exists in enum
+        
+        Args:
+            value: Value to check
+            enum_class: Enum class
+            
+        Returns:
+            True if valid
+        """
+        try:
+            return value in [e.value for e in enum_class]
+        except:
+            return False
