@@ -163,6 +163,104 @@ class TestProductivityEngine(unittest.TestCase):
             self.assertIn('max_productivity', metrics)
             self.assertIn('min_productivity', metrics)
             self.assertIn('avg_distractions', metrics)
+    
+    def test_performance_grading(self):
+        """Test performance grading"""
+        # Test A grade
+        grade = self.engine.get_performance_grade(95)
+        self.assertEqual(grade['grade'], 'A')
+        
+        # Test B grade
+        grade = self.engine.get_performance_grade(85)
+        self.assertEqual(grade['grade'], 'B')
+        
+        # Test C grade
+        grade = self.engine.get_performance_grade(75)
+        self.assertEqual(grade['grade'], 'C')
+        
+        # Test D grade
+        grade = self.engine.get_performance_grade(65)
+        self.assertEqual(grade['grade'], 'D')
+        
+        # Test F grade
+        grade = self.engine.get_performance_grade(55)
+        self.assertEqual(grade['grade'], 'F')
+    
+    def test_streak_calculation(self):
+        """Test streak calculation"""
+        sessions = self.storage.load_all_sessions()
+        streak = self.engine.calculate_streak(sessions)
+        
+        self.assertIn('current_streak', streak)
+        self.assertIn('best_streak', streak)
+        self.assertIn('total_days', streak)
+        self.assertIn('streak_status', streak)
+    
+    def test_compare_periods(self):
+        """Test period comparison"""
+        comparison = self.engine.compare_periods("2026-01-15", "2026-01-16", period_type='day')
+        
+        self.assertIn('period1', comparison)
+        self.assertIn('period2', comparison)
+        self.assertIn('improvement', comparison)
+        self.assertIn('improvement_text', comparison)
+    
+    def test_export_to_csv(self):
+        """Test CSV export"""
+        sessions = self.storage.load_all_sessions()
+        csv_file = self.engine.export_to_csv(sessions, "test_productivity.csv")
+        
+        self.assertTrue(os.path.exists(csv_file))
+        
+        # Cleanup
+        os.remove(csv_file)
+        os.rmdir("exports")
+    
+    def test_calculate_detailed_stats(self):
+        """Test detailed statistics calculation"""
+        values = [10, 20, 30, 40, 50]
+        stats = self.engine.calculate_detailed_stats(values)
+        
+        self.assertIn('mean', stats)
+        self.assertIn('median', stats)
+        self.assertIn('std', stats)
+        self.assertIn('min', stats)
+        self.assertIn('max', stats)
+        self.assertEqual(stats['mean'], 30.0)
+    
+    def test_cache_clear(self):
+        """Test cache clearing"""
+        # First call populates cache
+        self.engine.calculate_daily_summary("2026-01-15")
+        
+        # Cache should have something
+        self.assertGreater(len(self.engine._cache), 0)
+        
+        # Clear cache
+        self.engine.clear_cache()
+        
+        # Cache should be empty
+        self.assertEqual(len(self.engine._cache), 0)
+    
+    def test_get_performance_summary(self):
+        """Test performance summary"""
+        summary = self.engine.get_performance_summary()
+        
+        self.assertIn('total_sessions', summary)
+        self.assertIn('avg_productivity', summary)
+        self.assertIn('best_session', summary)
+        self.assertIn('worst_session', summary)
+        self.assertIn('grade', summary)
+        self.assertIn('streak', summary)
+        self.assertIn('total_time', summary)
+        self.assertIn('subjects', summary)
+    
+    def test_optimal_hours_limit(self):
+        """Test optimal hours limit"""
+        optimal = self.engine.get_optimal_study_times()
+        
+        # Should not exceed OPTIMAL_HOURS_LIMIT (6)
+        self.assertLessEqual(len(optimal.get('optimal_hours', [])), 6)
 
 
 if __name__ == '__main__':
