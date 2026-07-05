@@ -6,8 +6,12 @@ Common helper functions for the application with enhanced features
 import os
 import json
 import re
-from typing import Any, Dict, List, Optional, Tuple
+import time
+import threading
+from typing import Any, Dict, List, Optional, Tuple, Callable
 from datetime import datetime, timedelta
+from functools import wraps
+from collections import defaultdict
 import uuid
 import hashlib
 
@@ -198,6 +202,25 @@ class Helpers:
         except:
             return '{}'
     
+    @staticmethod
+    def pretty_print_json(data: Any, indent: int = 2) -> str:
+        """
+        Pretty print JSON data with colors
+        
+        Args:
+            data: Data to pretty print
+            indent: Indentation level
+            
+        Returns:
+            Pretty printed JSON string
+        """
+        try:
+            if isinstance(data, str):
+                data = json.loads(data)
+            return json.dumps(data, indent=indent, ensure_ascii=False, default=str)
+        except:
+            return str(data)
+    
     # ==========================================
     # STRING
     # ==========================================
@@ -257,6 +280,22 @@ class Helpers:
         text = re.sub(r'[^a-z0-9]+', '-', text)
         text = text.strip('-')
         return text
+    
+    @staticmethod
+    def validate_email(email: str) -> bool:
+        """
+        Validate email format
+        
+        Args:
+            email: Email address
+            
+        Returns:
+            True if valid
+        """
+        if not email:
+            return False
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        return bool(re.match(pattern, email))
     
     # ==========================================
     # MATH
@@ -329,6 +368,28 @@ class Helpers:
             minutes = int((total_seconds % 3600) // 60)
             return f"{hours}h {minutes}m"
     
+    @staticmethod
+    def format_size(size_bytes: int) -> str:
+        """
+        Format size in bytes to human readable
+        
+        Args:
+            size_bytes: Size in bytes
+            
+        Returns:
+            Human readable size
+        """
+        if size_bytes < 1024:
+            return f"{size_bytes} B"
+        elif size_bytes < 1024**2:
+            return f"{size_bytes / 1024:.1f} KB"
+        elif size_bytes < 1024**3:
+            return f"{size_bytes / 1024**2:.1f} MB"
+        elif size_bytes < 1024**4:
+            return f"{size_bytes / 1024**3:.1f} GB"
+        else:
+            return f"{size_bytes / 1024**4:.1f} TB"
+    
     # ==========================================
     # COLORS
     # ==========================================
@@ -368,6 +429,37 @@ class Helpers:
             5: '#3498DB'   # Blue
         }
         return colors.get(mood, '#95A5A6')  # Gray default
+    
+    @staticmethod
+    def hex_to_rgb(hex_color: str) -> Tuple[int, int, int]:
+        """
+        Convert hex color to RGB tuple
+        
+        Args:
+            hex_color: Hex color string (e.g., '#2ECC71')
+            
+        Returns:
+            RGB tuple (r, g, b)
+        """
+        hex_color = hex_color.lstrip('#')
+        if len(hex_color) == 3:
+            hex_color = ''.join([c*2 for c in hex_color])
+        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    
+    @staticmethod
+    def rgb_to_hex(r: int, g: int, b: int) -> str:
+        """
+        Convert RGB tuple to hex color
+        
+        Args:
+            r: Red value (0-255)
+            g: Green value (0-255)
+            b: Blue value (0-255)
+            
+        Returns:
+            Hex color string
+        """
+        return f'#{r:02x}{g:02x}{b:02x}'
     
     # ==========================================
     # FILE
@@ -414,3 +506,76 @@ class Helpers:
             return dt.strftime('%Y-%m-%d %H:%M:%S')
         except:
             return None
+    
+    # ==========================================
+    # DECORATORS
+    # ==========================================
+    
+    @staticmethod
+    def retry(max_attempts: int = 3, delay: float = 1.0, backoff: float = 2.0):
+        """
+        Decorator to retry a function on failure
+        
+        Args:
+            max_attempts: Maximum number of attempts
+            delay: Initial delay in seconds
+            backoff: Multiplier for delay after each attempt
+        """
+        def decorator(func):
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                attempt = 0
+                current_delay = delay
+                while attempt < max_attempts:
+                    try:
+                        return func(*args, **kwargs)
+                    except Exception as e:
+                        attempt += 1
+                        if attempt >= max_attempts:
+                            raise
+                        time.sleep(current_delay)
+                        current_delay *= backoff
+                return None
+            return wrapper
+        return decorator
+
+
+class RateLimiter:
+    """
+    Simple rate limiter for API calls
+    
+    Features:
+    - Per-call rate limiting
+    - Per-second limits
+    - Thread-safe
+    """
+    
+    def __init__(self, max_calls: int = 10, period: float = 1.0):
+        self.max_calls = max_calls
+        self.period = period
+        self.calls = defaultdict(list)
+        self._lock = threading.Lock()
+    
+    def __call__(self, key: str = "default") -> bool:
+        """Check if rate limit is exceeded"""
+        with self._lock:
+            now = time.time()
+            self.calls[key] = [t for t in self.calls[key] if now - t < self.period]
+            
+            if len(self.calls[key]) >= self.max_calls:
+                return False
+            
+            self.calls[key].append(now)
+            return True
+    
+    def reset(self, key: str = "default") -> None:
+        """Reset rate limit for a key"""
+        with self._lock:
+            self.calls[key] = []
+    
+    def get_remaining(self, key: str = "default") -> int:
+        """Get remaining calls allowed"""
+        with self._lock:
+            now = time.time()
+            self.calls[key] = [t for t in self.calls[key] if now - t < self.period]
+            return max(0, self.max_calls - len(self.calls[key]))
