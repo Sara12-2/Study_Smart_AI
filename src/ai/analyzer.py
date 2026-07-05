@@ -4,12 +4,13 @@ Advanced data analysis with statistical methods
 """
 
 import logging
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
+import math
 import numpy as np
 import pandas as pd
+from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta
 from collections import defaultdict
-from statistics import mean, median, stdev, mode
+from statistics import mean, median, stdev
 
 logger = logging.getLogger(__name__)
 
@@ -24,28 +25,34 @@ class AIAnalyzer:
     - Anomaly detection
     - Correlation analysis
     - Time series analysis
+    - Caching for performance
     """
     
     def __init__(self):
-        """Initialize the analyzer"""
+        """Initialize the analyzer with cache"""
+        self._cache = {}
+        self._cache_time = {}
+        self._cache_ttl = timedelta(minutes=5)
         logger.info("AIAnalyzer initialized")
     
-    def prepare_dataframe(self, sessions: List[Dict[str, Any]]) -> pd.DataFrame:
-        """
-        Convert sessions to pandas DataFrame for analysis
+    def _get_cached(self, key: str, func, *args, **kwargs):
+        """Get cached data or compute fresh"""
+        if key in self._cache:
+            if datetime.now() - self._cache_time[key] < self._cache_ttl:
+                return self._cache[key]
         
-        Args:
-            sessions: List of session dictionaries
-            
-        Returns:
-            DataFrame with processed data
-        """
+        result = func(*args, **kwargs)
+        self._cache[key] = result
+        self._cache_time[key] = datetime.now()
+        return result
+    
+    def prepare_dataframe(self, sessions: List[Dict[str, Any]]) -> pd.DataFrame:
+        """Convert sessions to pandas DataFrame for analysis"""
         if not sessions:
             return pd.DataFrame()
         
         df = pd.DataFrame(sessions)
         
-        # Convert timestamp to datetime
         if 'timestamp' in df.columns:
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             df['date'] = df['timestamp'].dt.date
@@ -57,14 +64,16 @@ class AIAnalyzer:
         return df
     
     def analyze_productivity_patterns(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """
-        Analyze productivity patterns using statistical methods
-        
-        Returns:
-            Dictionary with pattern analysis
-        """
+        """Analyze productivity patterns using statistical methods"""
         if df.empty:
             return {'error': 'No data available'}
+        
+        if 'productivity_score' not in df.columns:
+            return {'error': 'Missing productivity_score column'}
+        
+        # 🔥 FIX: Clean NaN values from productivity_score
+        df = df.copy()
+        df['productivity_score'] = df['productivity_score'].fillna(0)
         
         results = {
             'overall_stats': {},
@@ -72,23 +81,30 @@ class AIAnalyzer:
             'weekly_patterns': {},
             'hourly_patterns': {},
             'correlations': {},
-            'anomalies': []
+            'anomalies': [],
+            'consistency': 0
         }
         
-        # Overall statistics
-        if 'productivity_score' in df.columns:
-            scores = df['productivity_score']
-            results['overall_stats'] = {
-                'mean': round(mean(scores), 2),
-                'median': round(median(scores), 2),
-                'std': round(stdev(scores), 2) if len(scores) > 1 else 0,
-                'min': min(scores),
-                'max': max(scores),
-                'q1': round(np.percentile(scores, 25), 2),
-                'q3': round(np.percentile(scores, 75), 2)
-            }
+        scores = df['productivity_score'].dropna()
+        if len(scores) == 0:
+            return {'error': 'No valid productivity scores'}
         
-        # Daily patterns
+        results['overall_stats'] = {
+            'mean': round(float(mean(scores)), 2),
+            'median': round(float(median(scores)), 2),
+            'std': round(float(stdev(scores)), 2) if len(scores) > 1 else 0,
+            'min': float(min(scores)),
+            'max': float(max(scores)),
+            'q1': round(float(np.percentile(scores, 25)), 2) if len(scores) > 1 else 0,
+            'q3': round(float(np.percentile(scores, 75)), 2) if len(scores) > 1 else 0
+        }
+        
+        if len(scores) > 1:
+            results['consistency'] = round(100 - (float(stdev(scores)) / 100 * 100), 2)
+            results['consistency'] = max(0, min(100, results['consistency']))
+        else:
+            results['consistency'] = 100
+        
         if 'day_of_week' in df.columns:
             daily_avg = df.groupby('day_of_week')['productivity_score'].mean()
             daily_counts = df.groupby('day_of_week').size()
@@ -96,7 +112,7 @@ class AIAnalyzer:
             days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
             results['daily_patterns'] = {
                 'avg_productivity': {
-                    day: round(daily_avg.get(i, 0), 2)
+                    day: round(float(daily_avg.get(i, 0)), 2)
                     for i, day in enumerate(days)
                 },
                 'session_counts': {
@@ -107,67 +123,58 @@ class AIAnalyzer:
                 'worst_day': days[int(daily_avg.idxmin())] if not daily_avg.empty else None
             }
         
-        # Hourly patterns
         if 'hour' in df.columns:
             hourly_avg = df.groupby('hour')['productivity_score'].mean()
             hourly_counts = df.groupby('hour').size()
             
             results['hourly_patterns'] = {
-                'avg_productivity': hourly_avg.to_dict(),
-                'session_counts': hourly_counts.to_dict(),
+                'avg_productivity': {int(k): round(float(v), 2) for k, v in hourly_avg.to_dict().items()},
+                'session_counts': {int(k): int(v) for k, v in hourly_counts.to_dict().items()},
                 'peak_hour': int(hourly_avg.idxmax()) if not hourly_avg.empty else None,
                 'low_hour': int(hourly_avg.idxmin()) if not hourly_avg.empty else None
             }
         
-        # Weekly patterns
         if 'week' in df.columns:
             weekly_avg = df.groupby('week')['productivity_score'].mean()
             results['weekly_patterns'] = {
-                'avg_productivity': weekly_avg.to_dict(),
+                'avg_productivity': {int(k): round(float(v), 2) for k, v in weekly_avg.to_dict().items()},
                 'trend': self._calculate_trend(weekly_avg.values.tolist()) if len(weekly_avg) > 1 else 'insufficient'
             }
         
-        # Correlations
         if len(df) > 5:
             correlations = {}
             
-            # Duration vs Productivity
             if 'duration' in df.columns and 'productivity_score' in df.columns:
-                correlations['duration_productivity'] = round(
-                    df['duration'].corr(df['productivity_score']), 3
-                )
+                corr = df['duration'].corr(df['productivity_score'])
+                if not math.isnan(corr):
+                    correlations['duration_productivity'] = round(float(corr), 3)
             
-            # Distractions vs Productivity
             if 'distractions' in df.columns and 'productivity_score' in df.columns:
-                correlations['distractions_productivity'] = round(
-                    df['distractions'].corr(df['productivity_score']), 3
-                )
+                corr = df['distractions'].corr(df['productivity_score'])
+                if not math.isnan(corr):
+                    correlations['distractions_productivity'] = round(float(corr), 3)
             
-            # Hour vs Productivity
             if 'hour' in df.columns and 'productivity_score' in df.columns:
-                correlations['hour_productivity'] = round(
-                    df['hour'].corr(df['productivity_score']), 3
-                )
+                corr = df['hour'].corr(df['productivity_score'])
+                if not math.isnan(corr):
+                    correlations['hour_productivity'] = round(float(corr), 3)
             
             results['correlations'] = correlations
         
-        # Anomaly detection (Z-score method)
-        if 'productivity_score' in df.columns and len(df) > 10:
-            scores = df['productivity_score']
-            mean_score = mean(scores)
-            std_score = stdev(scores) if len(scores) > 1 else 1
+        if len(df) > 10:
+            mean_score = float(mean(scores))
+            std_score = float(stdev(scores)) if len(scores) > 1 else 1
             
-            # Find sessions with Z-score > 2 (unusual)
             z_scores = (scores - mean_score) / std_score
             anomalies = df[abs(z_scores) > 2]
             
             if not anomalies.empty:
-                for _, row in anomalies.iterrows():
+                for idx, row in anomalies.iterrows():
                     results['anomalies'].append({
                         'subject': row.get('subject', 'Unknown'),
-                        'productivity': row.get('productivity_score', 0),
+                        'productivity': float(row.get('productivity_score', 0)),
                         'timestamp': str(row.get('timestamp', '')),
-                        'z_score': round(z_scores[_], 2)
+                        'z_score': round(float(z_scores[idx]), 2)
                     })
         
         return results
@@ -177,8 +184,12 @@ class AIAnalyzer:
         if len(values) < 2:
             return 'insufficient'
         
-        first_half = mean(values[:len(values)//2])
-        second_half = mean(values[len(values)//2:])
+        clean_values = [v for v in values if not math.isnan(v)]
+        if len(clean_values) < 2:
+            return 'insufficient'
+        
+        first_half = mean(clean_values[:len(clean_values)//2])
+        second_half = mean(clean_values[len(clean_values)//2:])
         
         if second_half > first_half * 1.05:
             return 'improving'
@@ -187,12 +198,7 @@ class AIAnalyzer:
         return 'stable'
     
     def detect_learning_patterns(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """
-        Detect learning patterns and habits
-        
-        Returns:
-            Dictionary with learning pattern analysis
-        """
+        """Detect learning patterns and habits"""
         if df.empty:
             return {'error': 'No data available'}
         
@@ -205,111 +211,152 @@ class AIAnalyzer:
             'mood_productivity_correlation': None
         }
         
-        # Best learning time from hourly patterns
         if 'hour' in df.columns and 'productivity_score' in df.columns:
             hourly_avg = df.groupby('hour')['productivity_score'].mean()
             if not hourly_avg.empty:
                 best_hour = hourly_avg.idxmax()
-                patterns['best_learning_time'] = {
-                    'hour': int(best_hour),
-                    'avg_productivity': round(hourly_avg[best_hour], 2)
-                }
+                if not math.isnan(hourly_avg[best_hour]):
+                    patterns['best_learning_time'] = {
+                        'hour': int(best_hour),
+                        'avg_productivity': round(float(hourly_avg[best_hour]), 2)
+                    }
         
-        # Subject consistency
         if 'subject' in df.columns and 'productivity_score' in df.columns:
             subject_stats = df.groupby('subject')['productivity_score'].agg(['mean', 'std'])
             
             if not subject_stats.empty:
-                # Most consistent (lowest std)
                 most_consistent = subject_stats.loc[subject_stats['std'].idxmin()]
-                patterns['most_consistent_subject'] = {
-                    'subject': subject_stats['std'].idxmin(),
-                    'avg': round(most_consistent['mean'], 2),
-                    'std': round(most_consistent['std'], 2)
-                }
+                if not math.isnan(most_consistent['mean']):
+                    patterns['most_consistent_subject'] = {
+                        'subject': subject_stats['std'].idxmin(),
+                        'avg': round(float(most_consistent['mean']), 2),
+                        'std': round(float(most_consistent['std']), 2)
+                    }
                 
-                # Least consistent (highest std)
                 least_consistent = subject_stats.loc[subject_stats['std'].idxmax()]
-                patterns['least_consistent_subject'] = {
-                    'subject': subject_stats['std'].idxmax(),
-                    'avg': round(least_consistent['mean'], 2),
-                    'std': round(least_consistent['std'], 2)
-                }
+                if not math.isnan(least_consistent['mean']):
+                    patterns['least_consistent_subject'] = {
+                        'subject': subject_stats['std'].idxmax(),
+                        'avg': round(float(least_consistent['mean']), 2),
+                        'std': round(float(least_consistent['std']), 2)
+                    }
         
-        # Optimal session length
         if 'duration' in df.columns and 'productivity_score' in df.columns:
-            # Group duration into bins
             bins = [0, 15, 30, 45, 60, 90, 120, 240]
             df['duration_bin'] = pd.cut(df['duration'], bins)
             duration_scores = df.groupby('duration_bin')['productivity_score'].mean()
             
             if not duration_scores.empty:
                 best_bin = duration_scores.idxmax()
-                patterns['optimal_session_length'] = {
-                    'range': str(best_bin),
-                    'avg_productivity': round(duration_scores[best_bin], 2)
-                }
+                if not math.isnan(duration_scores[best_bin]):
+                    patterns['optimal_session_length'] = {
+                        'range': str(best_bin),
+                        'avg_productivity': round(float(duration_scores[best_bin]), 2)
+                    }
         
-        # Distraction patterns
         if 'distractions' in df.columns:
             patterns['distraction_patterns'] = {
-                'avg_distractions': round(df['distractions'].mean(), 2),
+                'avg_distractions': round(float(df['distractions'].mean()), 2),
                 'max_distractions': int(df['distractions'].max()),
                 'zero_distraction_sessions': int((df['distractions'] == 0).sum()),
                 'high_distraction_sessions': int((df['distractions'] > 5).sum()),
                 'distraction_rate': round(
-                    (df['distractions'] > 0).sum() / len(df) * 100, 2
+                    float((df['distractions'] > 0).sum()) / len(df) * 100, 2
                 )
             }
         
-        # Mood vs Productivity correlation
         if 'mood' in df.columns and 'productivity_score' in df.columns:
             mood_df = df[df['mood'].notna()]
             if len(mood_df) > 3:
-                patterns['mood_productivity_correlation'] = round(
-                    mood_df['mood'].corr(mood_df['productivity_score']), 3
-                )
+                corr = mood_df['mood'].corr(mood_df['productivity_score'])
+                if not math.isnan(corr):
+                    patterns['mood_productivity_correlation'] = round(float(corr), 3)
         
         return patterns
     
     def generate_insights(self, sessions: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Generate comprehensive AI insights
+        """Generate comprehensive AI insights"""
+        import math
+        import numpy as np
         
-        Args:
-            sessions: List of session dictionaries
-            
-        Returns:
-            Dictionary with AI insights
-        """
-        df = self.prepare_dataframe(sessions)
+        # Filter out invalid sessions
+        valid_sessions = []
+        for s in sessions:
+            score = s.get('productivity_score')
+            if score is not None:
+                try:
+                    score_float = float(score)
+                    if not math.isnan(score_float) and not np.isnan(score_float):
+                        # Ensure score is within valid range
+                        if 0 <= score_float <= 100:
+                            s['productivity_score'] = score_float
+                            valid_sessions.append(s)
+                        else:
+                            # Clamp to valid range
+                            s['productivity_score'] = max(0, min(100, score_float))
+                            valid_sessions.append(s)
+                except (ValueError, TypeError):
+                    continue
+        
+        if len(valid_sessions) < 5:
+            return {
+                'error': 'Insufficient data',
+                'message': f'Need 5 valid sessions, have {len(valid_sessions)}',
+                'current_sessions': len(valid_sessions)
+            }
+        
+        df = self.prepare_dataframe(valid_sessions)
         
         if df.empty:
             return {
                 'error': 'Insufficient data',
-                'message': 'Add at least 5 sessions for AI insights'
+                'message': 'No valid data found'
             }
         
-        if len(sessions) < 5:
+        if 'productivity_score' not in df.columns:
             return {
-                'error': 'Insufficient data',
-                'message': f'Add {5 - len(sessions)} more sessions for AI insights',
-                'current_sessions': len(sessions)
+                'error': 'Missing productivity scores',
+                'message': 'Sessions must have productivity_score field'
             }
         
         try:
             patterns = self.detect_learning_patterns(df)
             analysis = self.analyze_productivity_patterns(df)
             
+            def clean_nan(obj):
+                if isinstance(obj, dict):
+                    return {k: clean_nan(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [clean_nan(v) for v in obj]
+                elif isinstance(obj, float):
+                    if math.isnan(obj) or np.isnan(obj):
+                        return 0
+                    return obj
+                elif isinstance(obj, (int, str, bool)):
+                    return obj
+                elif obj is None:
+                    return 0
+                else:
+                    return 0
+            
+            patterns = clean_nan(patterns) if patterns else {}
+            analysis = clean_nan(analysis) if analysis else {}
+            
+            # Ensure analysis has required fields
+            if analysis and isinstance(analysis, dict):
+                if 'overall_stats' not in analysis or not analysis['overall_stats']:
+                    analysis['overall_stats'] = {'mean': 0, 'median': 0, 'std': 0, 'min': 0, 'max': 0, 'q1': 0, 'q3': 0}
+                if 'consistency' not in analysis:
+                    analysis['consistency'] = 0
+            
             insights = {
                 'patterns': patterns,
                 'analysis': analysis,
-                'total_sessions': len(sessions),
-                'ai_confidence': self._calculate_confidence(df)
+                'total_sessions': len(valid_sessions),
+                'ai_confidence': self._calculate_confidence(df),
+                'consistency': analysis.get('consistency', 0) if analysis else 0,
+                'recommendations': self._generate_recommendations(patterns, analysis)
             }
-            
-            # Add recommendations
-            insights['recommendations'] = self._generate_recommendations(patterns, analysis)
             
             return insights
             
@@ -336,60 +383,71 @@ class AIAnalyzer:
         """Generate human-readable recommendations"""
         recommendations = []
         
-        # Best time recommendation
-        if patterns.get('best_learning_time'):
+        if patterns and patterns.get('best_learning_time'):
             hour = patterns['best_learning_time']['hour']
             productivity = patterns['best_learning_time']['avg_productivity']
             recommendations.append(
-                f"🌟 Schedule your study sessions around {hour:02d}:00 - you're {productivity}% productive then!"
+                f"Schedule your study sessions around {hour:02d}:00 - you're {productivity}% productive then!"
             )
         
-        # Session length recommendation
-        if patterns.get('optimal_session_length'):
+        if patterns and patterns.get('optimal_session_length'):
             range_str = patterns['optimal_session_length']['range']
             productivity = patterns['optimal_session_length']['avg_productivity']
             recommendations.append(
-                f"⏱️ Optimal session length: {range_str} - {productivity}% average productivity"
+                f"Optimal session length: {range_str} - {productivity}% average productivity"
             )
         
-        # Consistency recommendation
-        if patterns.get('most_consistent_subject'):
+        if patterns and patterns.get('most_consistent_subject'):
             subject = patterns['most_consistent_subject']['subject']
             recommendations.append(
-                f"📚 You're most consistent with {subject} - keep it up!"
+                f"You're most consistent with {subject} - keep it up!"
             )
         
-        # Distraction recommendation
-        if patterns.get('distraction_patterns'):
-            rate = patterns['distraction_patterns']['distraction_rate']
+        if patterns and patterns.get('distraction_patterns'):
+            rate = patterns['distraction_patterns'].get('distraction_rate', 0)
+            zero_sessions = patterns['distraction_patterns'].get('zero_distraction_sessions', 0)
             if rate > 50:
                 recommendations.append(
-                    "⚠️ You have distractions in most sessions. Try the Pomodoro technique (25 min focus, 5 min break)!"
+                    "You have distractions in most sessions. Try the Pomodoro technique (25 min focus, 5 min break)!"
                 )
-            elif patterns['distraction_patterns']['zero_distraction_sessions'] > 0:
+            elif zero_sessions > 0:
                 recommendations.append(
-                    f"🎯 {patterns['distraction_patterns']['zero_distraction_sessions']} distraction-free sessions! Try to increase this!"
+                    f"{zero_sessions} distraction-free sessions! Try to increase this!"
                 )
         
-        # Mood recommendation
-        if patterns.get('mood_productivity_correlation'):
+        if patterns and patterns.get('mood_productivity_correlation'):
             corr = patterns['mood_productivity_correlation']
             if corr > 0.5:
                 recommendations.append(
-                    "😊 Your mood strongly affects your productivity. Study when you're in a good mood!"
+                    "Your mood strongly affects your productivity. Study when you're in a good mood!"
                 )
         
-        # Best day recommendation
-        if analysis.get('daily_patterns'):
+        if analysis and analysis.get('daily_patterns'):
             best_day = analysis['daily_patterns'].get('best_day')
             if best_day:
                 recommendations.append(
-                    f"📅 Your best day is {best_day}. Plan important topics for this day!"
+                    f"Your best day is {best_day}. Plan important topics for this day!"
                 )
+        
+        consistency = analysis.get('consistency', 0) if analysis else 0
+        if consistency < 50:
+            recommendations.append(
+                "Your productivity is inconsistent. Try to maintain a regular study schedule!"
+            )
+        elif consistency > 80:
+            recommendations.append(
+                "Your productivity is very consistent! Excellent work!"
+            )
         
         if not recommendations:
             recommendations.append(
-                "💡 Keep tracking your sessions for personalized recommendations!"
+                "Keep tracking your sessions for personalized recommendations!"
             )
         
         return recommendations
+    
+    def clear_cache(self) -> None:
+        """Clear all cached data"""
+        self._cache.clear()
+        self._cache_time.clear()
+        logger.info("Cache cleared")
