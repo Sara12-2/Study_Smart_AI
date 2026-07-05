@@ -3,58 +3,133 @@
 // ==========================================
 
 // ==========================================
-// TOAST NOTIFICATIONS
+// TOAST NOTIFICATIONS - Premium
 // ==========================================
 function showToast(message, type = 'success') {
     let container = document.getElementById('toastContainer');
     if (!container) {
         container = document.createElement('div');
         container.id = 'toastContainer';
+        container.style.cssText = `
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 420px;
+            width: 100%;
+            pointer-events: none;
+        `;
         document.body.appendChild(container);
     }
     
-    const colors = {
-        success: '#2ECC71',
-        error: '#E74C3C',
-        warning: '#F39C12',
-        info: '#3498DB'
+    const config = {
+        success: { color: '#2ECC71', icon: 'fa-check-circle', bg: 'rgba(46,204,113,0.1)' },
+        error: { color: '#E74C3C', icon: 'fa-exclamation-circle', bg: 'rgba(231,76,60,0.1)' },
+        warning: { color: '#F39C12', icon: 'fa-exclamation-triangle', bg: 'rgba(243,156,18,0.1)' },
+        info: { color: '#3498DB', icon: 'fa-info-circle', bg: 'rgba(52,152,219,0.1)' }
     };
     
-    const icons = {
-        success: 'fa-check-circle',
-        error: 'fa-exclamation-circle',
-        warning: 'fa-exclamation-triangle',
-        info: 'fa-info-circle'
-    };
+    const cfg = config[type] || config.info;
+    const isDark = document.body.classList.contains('dark-mode');
     
     const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
+    toast.style.cssText = `
+        background: ${isDark ? '#2d2d44' : '#ffffff'};
+        color: ${isDark ? '#e0e0e0' : '#2D3436'};
+        padding: 14px 20px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+        border-left: 4px solid ${cfg.color};
+        animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        pointer-events: auto;
+        backdrop-filter: blur(10px);
+        border: 1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'};
+        max-width: 400px;
+        width: 100%;
+    `;
+    
     toast.innerHTML = `
-        <i class="fas ${icons[type]}"></i>
-        ${message}
+        <div style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:${cfg.bg};flex-shrink:0;">
+            <i class="fas ${cfg.icon}" style="color:${cfg.color};font-size:16px;"></i>
+        </div>
+        <span style="flex:1;font-weight:500;line-height:1.4;">${message}</span>
+        <button onclick="this.parentElement.remove()" style="background:none;border:none;color:${isDark ? '#95A5A6' : '#95A5A6'};cursor:pointer;font-size:16px;padding:4px;transition:color 0.3s;">
+            <i class="fas fa-times"></i>
+        </button>
     `;
     
     container.appendChild(toast);
     
+    // Add animation styles if not exists
+    if (!document.getElementById('toastStyles')) {
+        const style = document.createElement('style');
+        style.id = 'toastStyles';
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+            @keyframes confettiFall {
+                0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+                100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
     setTimeout(() => {
-        toast.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+        toast.style.animation = 'slideOut 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+        setTimeout(() => toast.remove(), 350);
+    }, 3500);
 }
 
 // ==========================================
-// DARK MODE
+// DARK MODE - Fixed (No Duplicate Calls)
 // ==========================================
 function toggleDarkMode() {
     document.body.classList.toggle('dark-mode');
-    localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
-    showToast(document.body.classList.contains('dark-mode') ? '🌙 Dark mode enabled' : '☀️ Light mode enabled', 'info');
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('darkMode', isDark);
+    
+    // Update moon/sun icon
+    const moonIcon = document.querySelector('.nav-item .fa-moon, .nav-item .fa-sun');
+    if (moonIcon) {
+        moonIcon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+    }
+    
+    // Save preference via API
+    fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme: isDark ? 'dark' : 'light' })
+    }).catch(err => console.error('Error saving theme:', err));
+    
+    showToast(isDark ? '🌙 Dark mode enabled' : '☀️ Light mode enabled', 'info');
 }
 
-// Check saved preference
-if (localStorage.getItem('darkMode') === 'true') {
-    document.body.classList.add('dark-mode');
-}
+// Check saved preference on load
+document.addEventListener('DOMContentLoaded', function() {
+    if (localStorage.getItem('darkMode') === 'true') {
+        document.body.classList.add('dark-mode');
+        // Update icon if exists
+        const moonIcon = document.querySelector('.nav-item .fa-moon, .nav-item .fa-sun');
+        if (moonIcon) {
+            moonIcon.className = 'fas fa-sun';
+        }
+    }
+});
 
 // ==========================================
 // EXPORT DATA
@@ -65,50 +140,111 @@ function exportData() {
         .then(data => {
             if (data.success) {
                 window.location.href = data.file;
-                showToast('✅ Data exported successfully!', 'success');
+                showToast('Data exported successfully', 'success');
             } else {
-                showToast('⚠️ No data to export', 'warning');
+                showToast('No data to export', 'warning');
             }
         })
-        .catch(() => showToast('❌ Export failed', 'error'));
+        .catch(() => showToast('Export failed', 'error'));
 }
 
 // ==========================================
-// ACHIEVEMENTS
+// ACHIEVEMENTS - Premium
 // ==========================================
 function checkAchievements(sessions) {
-    const achievements = {
-        5: '🎯 5 Sessions - Great Start!',
-        10: '🔥 10 Sessions - Building Momentum!',
-        25: '💪 25 Sessions - Consistency!',
-        50: '🏆 50 Sessions - You\'re on Fire!',
-        100: '🌟 100 Sessions - Master Level!'
-    };
+    const achievements = [
+        { threshold: 5, message: '5 Sessions - Great Start!', icon: 'fa-star' },
+        { threshold: 10, message: '10 Sessions - Building Momentum!', icon: 'fa-rocket' },
+        { threshold: 25, message: '25 Sessions - Consistency!', icon: 'fa-shield-alt' },
+        { threshold: 50, message: '50 Sessions - On Fire!', icon: 'fa-fire' },
+        { threshold: 100, message: '100 Sessions - Master Level!', icon: 'fa-crown' },
+        { threshold: 200, message: '200 Sessions - Legendary!', icon: 'fa-gem' }
+    ];
     
-    for (const [count, message] of Object.entries(achievements)) {
-        if (sessions >= parseInt(count)) {
-            // Confetti effect
-            const colors = ['#6C63FF', '#2ECC71', '#F39C12', '#FF6584', '#3498DB'];
-            for (let i = 0; i < 50; i++) {
-                const confetti = document.createElement('div');
-                confetti.style.cssText = `
-                    position: fixed;
-                    top: -10px;
-                    left: ${Math.random() * 100}vw;
-                    width: ${5 + Math.random() * 10}px;
-                    height: ${5 + Math.random() * 10}px;
-                    background: ${colors[Math.floor(Math.random() * colors.length)]};
-                    border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
-                    animation: confettiFall ${2 + Math.random() * 2}s ease-in forwards;
-                    z-index: 9999;
-                `;
-                document.body.appendChild(confetti);
-                setTimeout(() => confetti.remove(), 4000);
-            }
-            showToast(`🏆 ${message}`, 'success');
-            break;
+    let unlocked = false;
+    for (const ach of achievements) {
+        if (sessions >= ach.threshold) {
+            unlocked = true;
+            showAchievement(ach.message, ach.icon);
         }
     }
+    
+    if (!unlocked && sessions > 0) {
+        const next = achievements.find(a => sessions < a.threshold);
+        if (next) {
+            const progress = Math.round((sessions / next.threshold) * 100);
+            console.log(`Progress to next achievement: ${progress}%`);
+        }
+    }
+}
+
+function showAchievement(message, icon = 'fa-trophy') {
+    // Confetti effect
+    const colors = ['#6C63FF', '#2ECC71', '#F39C12', '#FF6584', '#3498DB', '#E74C3C'];
+    for (let i = 0; i < 60; i++) {
+        const confetti = document.createElement('div');
+        const size = 6 + Math.random() * 10;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const duration = 2 + Math.random() * 2;
+        const delay = Math.random() * 0.5;
+        confetti.style.cssText = `
+            position: fixed;
+            top: -10px;
+            left: ${Math.random() * 100}vw;
+            width: ${size}px;
+            height: ${size * 0.6}px;
+            background: ${color};
+            border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
+            animation: confettiFall ${duration}s ease-in ${delay}s forwards;
+            z-index: 9999;
+            transform: rotate(${Math.random() * 360}deg);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        `;
+        document.body.appendChild(confetti);
+        setTimeout(() => confetti.remove(), 4000);
+    }
+    
+    // Show achievement toast
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    
+    const isDark = document.body.classList.contains('dark-mode');
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        background: ${isDark ? '#2d2d44' : '#ffffff'};
+        color: ${isDark ? '#e0e0e0' : '#2D3436'};
+        padding: 18px 24px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(108, 99, 255, 0.2);
+        border-left: 4px solid #6C63FF;
+        animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        font-family: 'Inter', sans-serif;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        pointer-events: auto;
+        background: ${isDark ? 'linear-gradient(135deg, #2d2d44, #3d3d54)' : 'linear-gradient(135deg, #ffffff, #f8f9fa)'};
+        border: 1px solid rgba(108, 99, 255, 0.15);
+        font-weight: 600;
+    `;
+    
+    toast.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#6C63FF,#8B83FF);flex-shrink:0;box-shadow:0 4px 12px rgba(108,99,255,0.3);">
+            <i class="fas ${icon}" style="color:white;font-size:18px;"></i>
+        </div>
+        <span style="flex:1;line-height:1.4;">${message}</span>
+        <button onclick="this.parentElement.remove()" style="background:none;border:none;color:${isDark ? '#95A5A6' : '#95A5A6'};cursor:pointer;font-size:16px;padding:4px;transition:color 0.3s;">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    container.prepend(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+        setTimeout(() => toast.remove(), 350);
+    }, 4000);
 }
 
 // ==========================================
@@ -138,19 +274,59 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Form submission
-    document.getElementById('sessionForm').addEventListener('submit', addSession);
-    
-    // Dark mode toggle in sidebar
-    const darkModeToggle = document.querySelector('.nav-item[onclick="toggleDarkMode()"]');
-    if (darkModeToggle) {
-        darkModeToggle.addEventListener('click', toggleDarkMode);
+    const form = document.getElementById('sessionForm');
+    if (form) {
+        form.addEventListener('submit', addSession);
     }
+    
+    // ==========================================
+    // REMOVED: Duplicate dark mode event listener
+    // onclick is already in HTML, so no need for addEventListener
+    // ==========================================
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'n') {
+            e.preventDefault();
+            showAddModal();
+        }
+        if (e.key === 'Escape') {
+            closeModal();
+        }
+        if (e.ctrlKey && e.key >= '1' && e.key <= '5') {
+            e.preventDefault();
+            const pages = ['dashboard', 'sessions', 'subjects', 'insights', 'settings'];
+            const page = pages[parseInt(e.key) - 1];
+            if (page) {
+                const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
+                if (navItem) {
+                    navItem.click();
+                }
+            }
+        }
+    });
 });
 
 // ==========================================
-// NAVIGATION
+// NAVIGATION - UPDATED WITH SETTINGS
 // ==========================================
 function navigateTo(page) {
+    // Page title mapping
+    const titles = {
+        dashboard: 'Dashboard',
+        sessions: 'Sessions',
+        subjects: 'Subjects',
+        insights: 'AI Insights',
+        settings: 'Settings'
+    };
+    const icons = {
+        dashboard: 'fa-chart-pie',
+        sessions: 'fa-book-open',
+        subjects: 'fa-layer-group',
+        insights: 'fa-robot',
+        settings: 'fa-cog'
+    };
+    
     // Update nav
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
@@ -170,23 +346,8 @@ function navigateTo(page) {
     }
     
     // Update title
-    const titles = {
-        dashboard: 'Dashboard',
-        sessions: 'Sessions',
-        subjects: 'Subjects',
-        insights: 'AI Insights',
-        settings: 'Settings'
-    };
-    const icons = {
-        dashboard: 'fa-chart-pie',
-        sessions: 'fa-book-open',
-        subjects: 'fa-layer-group',
-        insights: 'fa-robot',
-        settings: 'fa-cog'
-    };
-    
     const titleElement = document.getElementById('pageTitle');
-    if (titleElement) {
+    if (titleElement && titles[page]) {
         titleElement.innerHTML = `
             <i class="fas ${icons[page]}"></i> ${titles[page]}
         `;
@@ -209,9 +370,375 @@ function navigateTo(page) {
             loadInsights();
             break;
         case 'settings':
-            // Settings page loads its own data
+            loadSettingsPage();
             break;
     }
+}
+
+// ==========================================
+// SETTINGS PAGE
+// ==========================================
+
+function loadSettingsPage() {
+    const container = document.getElementById('settingsContent');
+    if (!container) return;
+    
+    // Show loading
+    container.innerHTML = `
+        <div class="skeleton-wrapper">
+            <div class="skeleton-line long"></div>
+            <div class="skeleton-line medium"></div>
+            <div class="skeleton-line short"></div>
+            <div class="skeleton-line long"></div>
+            <div class="skeleton-line medium"></div>
+        </div>
+    `;
+    
+    // Fetch settings from API
+    fetch('/api/settings')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderSettingsForm(data.data);
+            } else {
+                container.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Failed to load settings: ${data.error || 'Unknown error'}</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading settings:', error);
+            container.innerHTML = `
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading settings. Please try again.</p>
+                </div>
+            `;
+        });
+}
+
+function renderSettingsForm(settings) {
+    const container = document.getElementById('settingsContent');
+    if (!container) return;
+    
+    // Default settings if not provided
+    const s = settings || {
+        theme: 'light',
+        notifications: true,
+        study_reminder: true,
+        reminder_interval: 60,
+        default_subject: '',
+        daily_goal: 120,
+        weekly_goal: 600,
+        language: 'en',
+        time_format: '24h',
+        sound_effects: true,
+        auto_backup: true,
+        backup_interval: 7
+    };
+    
+    container.innerHTML = `
+        <form id="settingsForm" onsubmit="saveSettings(event)">
+            <div class="settings-grid">
+                <!-- Theme -->
+                <div class="settings-group">
+                    <label>Theme</label>
+                    <select id="settingTheme" class="settings-input">
+                        <option value="light" ${s.theme === 'light' ? 'selected' : ''}>☀️ Light</option>
+                        <option value="dark" ${s.theme === 'dark' ? 'selected' : ''}>🌙 Dark</option>
+                        <option value="auto" ${s.theme === 'auto' ? 'selected' : ''}>🔄 Auto</option>
+                    </select>
+                </div>
+                
+                <!-- Language -->
+                <div class="settings-group">
+                    <label>Language</label>
+                    <select id="settingLanguage" class="settings-input">
+                        <option value="en" ${s.language === 'en' ? 'selected' : ''}>🇬🇧 English</option>
+                        <option value="ur" ${s.language === 'ur' ? 'selected' : ''}>🇵🇰 Urdu</option>
+                        <option value="hi" ${s.language === 'hi' ? 'selected' : ''}>🇮🇳 Hindi</option>
+                    </select>
+                </div>
+                
+                <!-- Time Format -->
+                <div class="settings-group">
+                    <label>Time Format</label>
+                    <select id="settingTimeFormat" class="settings-input">
+                        <option value="12h" ${s.time_format === '12h' ? 'selected' : ''}>12-hour (AM/PM)</option>
+                        <option value="24h" ${s.time_format === '24h' ? 'selected' : ''}>24-hour</option>
+                    </select>
+                </div>
+                
+                <!-- Daily Goal -->
+                <div class="settings-group">
+                    <label>Daily Goal (minutes)</label>
+                    <input type="number" id="settingDailyGoal" class="settings-input" 
+                           value="${s.daily_goal}" min="30" max="480">
+                    <span class="help-text">Recommended: 120 min</span>
+                </div>
+                
+                <!-- Weekly Goal -->
+                <div class="settings-group">
+                    <label>Weekly Goal (minutes)</label>
+                    <input type="number" id="settingWeeklyGoal" class="settings-input" 
+                           value="${s.weekly_goal}" min="120" max="1680">
+                    <span class="help-text">Recommended: 600 min</span>
+                </div>
+                
+                <!-- Default Subject -->
+                <div class="settings-group">
+                    <label>Default Subject</label>
+                    <input type="text" id="settingDefaultSubject" class="settings-input" 
+                           value="${s.default_subject || ''}" placeholder="e.g., Python">
+                </div>
+                
+                <!-- Reminder Interval -->
+                <div class="settings-group">
+                    <label>Reminder Interval (minutes)</label>
+                    <input type="number" id="settingReminderInterval" class="settings-input" 
+                           value="${s.reminder_interval}" min="15" max="180">
+                </div>
+                
+                <!-- Backup Interval -->
+                <div class="settings-group">
+                    <label>Auto Backup (days)</label>
+                    <input type="number" id="settingBackupInterval" class="settings-input" 
+                           value="${s.backup_interval || 7}" min="1" max="30">
+                </div>
+            </div>
+            
+            <!-- Toggle Switches -->
+            <div class="settings-toggles">
+                <div class="toggle-group">
+                    <label class="toggle-label">
+                        <span><i class="fas fa-bell"></i> Notifications</span>
+                        <div class="toggle-switch ${s.notifications ? 'active' : ''}" 
+                             onclick="toggleSwitch(this)">
+                            <input type="hidden" id="settingNotifications" value="${s.notifications}">
+                            <span class="toggle-slider"></span>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="toggle-group">
+                    <label class="toggle-label">
+                        <span><i class="fas fa-clock"></i> Study Reminder</span>
+                        <div class="toggle-switch ${s.study_reminder ? 'active' : ''}" 
+                             onclick="toggleSwitch(this)">
+                            <input type="hidden" id="settingStudyReminder" value="${s.study_reminder}">
+                            <span class="toggle-slider"></span>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="toggle-group">
+                    <label class="toggle-label">
+                        <span><i class="fas fa-volume-up"></i> Sound Effects</span>
+                        <div class="toggle-switch ${s.sound_effects ? 'active' : ''}" 
+                             onclick="toggleSwitch(this)">
+                            <input type="hidden" id="settingSoundEffects" value="${s.sound_effects}">
+                            <span class="toggle-slider"></span>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="toggle-group">
+                    <label class="toggle-label">
+                        <span><i class="fas fa-database"></i> Auto Backup</span>
+                        <div class="toggle-switch ${s.auto_backup ? 'active' : ''}" 
+                             onclick="toggleSwitch(this)">
+                            <input type="hidden" id="settingAutoBackup" value="${s.auto_backup}">
+                            <span class="toggle-slider"></span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="settings-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Settings
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="resetSettings()">
+                    <i class="fas fa-undo"></i> Reset to Default
+                </button>
+            </div>
+            
+            <div id="settingsMessage" class="settings-message"></div>
+        </form>
+    `;
+}
+
+// ==========================================
+// TOGGLE SWITCH
+// ==========================================
+function toggleSwitch(element) {
+    element.classList.toggle('active');
+    const hiddenInput = element.querySelector('input[type="hidden"]');
+    if (hiddenInput) {
+        hiddenInput.value = element.classList.contains('active');
+    }
+}
+
+// ==========================================
+// SAVE SETTINGS
+// ==========================================
+function saveSettings(event) {
+    event.preventDefault();
+    
+    const settings = {
+        theme: document.getElementById('settingTheme')?.value || 'light',
+        language: document.getElementById('settingLanguage')?.value || 'en',
+        time_format: document.getElementById('settingTimeFormat')?.value || '24h',
+        daily_goal: parseInt(document.getElementById('settingDailyGoal')?.value) || 120,
+        weekly_goal: parseInt(document.getElementById('settingWeeklyGoal')?.value) || 600,
+        default_subject: document.getElementById('settingDefaultSubject')?.value || '',
+        reminder_interval: parseInt(document.getElementById('settingReminderInterval')?.value) || 60,
+        backup_interval: parseInt(document.getElementById('settingBackupInterval')?.value) || 7,
+        notifications: document.getElementById('settingNotifications')?.value === 'true',
+        study_reminder: document.getElementById('settingStudyReminder')?.value === 'true',
+        sound_effects: document.getElementById('settingSoundEffects')?.value === 'true',
+        auto_backup: document.getElementById('settingAutoBackup')?.value === 'true'
+    };
+    
+    const messageEl = document.getElementById('settingsMessage');
+    
+    messageEl.innerHTML = `
+        <div class="info-message">
+            <i class="fas fa-spinner fa-spin"></i> Saving settings...
+        </div>
+    `;
+    
+    fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            messageEl.innerHTML = `
+                <div class="success-message">
+                    <i class="fas fa-check-circle"></i> Settings saved successfully!
+                </div>
+            `;
+            
+            // Apply theme immediately
+            applyTheme(settings.theme);
+            
+            // Update dark mode icon
+            const isDark = settings.theme === 'dark';
+            const moonIcon = document.querySelector('.nav-item .fa-moon, .nav-item .fa-sun');
+            if (moonIcon) {
+                moonIcon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            
+            showToast('Settings saved successfully!', 'success');
+            
+            setTimeout(() => {
+                messageEl.innerHTML = '';
+            }, 3000);
+        } else {
+            messageEl.innerHTML = `
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle"></i> ${data.error || 'Failed to save settings'}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error saving settings:', error);
+        messageEl.innerHTML = `
+            <div class="error-message">
+                <i class="fas fa-exclamation-circle"></i> Error saving settings
+            </div>
+        `;
+    });
+}
+
+// ==========================================
+// RESET SETTINGS
+// ==========================================
+function resetSettings() {
+    if (!confirm('⚠️ Are you sure you want to reset all settings to default?')) {
+        return;
+    }
+    
+    const messageEl = document.getElementById('settingsMessage');
+    
+    messageEl.innerHTML = `
+        <div class="info-message">
+            <i class="fas fa-spinner fa-spin"></i> Resetting settings...
+        </div>
+    `;
+    
+    fetch('/api/settings/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            messageEl.innerHTML = `
+                <div class="success-message">
+                    <i class="fas fa-check-circle"></i> Settings reset to default!
+                </div>
+            `;
+            // Reload settings
+            loadSettingsPage();
+            showToast('Settings reset to default', 'info');
+        } else {
+            messageEl.innerHTML = `
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle"></i> ${data.error || 'Failed to reset settings'}
+                </div>
+            `;
+        }
+        
+        setTimeout(() => {
+            messageEl.innerHTML = '';
+        }, 3000);
+    })
+    .catch(error => {
+        console.error('Error resetting settings:', error);
+        messageEl.innerHTML = `
+            <div class="error-message">
+                <i class="fas fa-exclamation-circle"></i> Error resetting settings
+            </div>
+        `;
+    });
+}
+
+// ==========================================
+// APPLY THEME
+// ==========================================
+function applyTheme(theme) {
+    if (theme === 'dark') {
+        document.body.classList.add('dark-mode');
+        localStorage.setItem('darkMode', 'true');
+    } else if (theme === 'auto') {
+        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (isDark) {
+            document.body.classList.add('dark-mode');
+            localStorage.setItem('darkMode', 'true');
+        } else {
+            document.body.classList.remove('dark-mode');
+            localStorage.setItem('darkMode', 'false');
+        }
+    } else {
+        document.body.classList.remove('dark-mode');
+        localStorage.setItem('darkMode', 'false');
+    }
+}
+
+// ==========================================
+// NAVIGATE TO SETTINGS (Helper)
+// ==========================================
+function navigateToSettings(event) {
+    if (event) event.preventDefault();
+    navigateTo('settings');
 }
 
 // ==========================================
@@ -244,34 +771,28 @@ function loadStats() {
             if (data.success) {
                 const sessions = data.data.total_sessions || 0;
                 
-                // Update stats cards
-                const statSessions = document.getElementById('statSessions');
-                if (statSessions) statSessions.textContent = sessions;
+                // Update stats cards with animation
+                const statElements = {
+                    'statSessions': sessions,
+                    'statTime': `${data.data.total_time || 0} min`,
+                    'statProductivity': `${data.data.avg_productivity || 0}%`,
+                    'totalSessions': sessions,
+                    'sessionBadge': sessions
+                };
                 
-                const statTime = document.getElementById('statTime');
-                if (statTime) statTime.textContent = `${data.data.total_time || 0} min`;
+                Object.entries(statElements).forEach(([id, value]) => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.textContent = value;
+                        // Animation effect
+                        el.style.transition = 'transform 0.3s ease';
+                        el.style.transform = 'scale(1.1)';
+                        setTimeout(() => {
+                            el.style.transform = 'scale(1)';
+                        }, 200);
+                    }
+                });
                 
-                const statProductivity = document.getElementById('statProductivity');
-                if (statProductivity) statProductivity.textContent = `${data.data.avg_productivity || 0}%`;
-                
-                const statConsistency = document.getElementById('statConsistency');
-                if (statConsistency) statConsistency.textContent = '--';
-                
-                // Update sidebar and badge
-                const totalSessions = document.getElementById('totalSessions');
-                if (totalSessions) totalSessions.textContent = sessions;
-                
-                const sessionBadge = document.getElementById('sessionBadge');
-                if (sessionBadge) sessionBadge.textContent = sessions;
-                
-                // Update settings page
-                const totalSessionsValue = document.getElementById('totalSessionsValue');
-                if (totalSessionsValue) totalSessionsValue.textContent = sessions;
-                
-                const fileSizeValue = document.getElementById('fileSizeValue');
-                if (fileSizeValue) fileSizeValue.textContent = data.data.file_size || '0 B';
-                
-                // Check achievements
                 checkAchievements(sessions);
             }
         })
@@ -309,13 +830,9 @@ function loadDashboard() {
                         <span><i class="fas fa-exclamation-triangle" style="color:#E74C3C;"></i>Distractions</span>
                         <strong>${d.total_distractions}</strong>
                     </div>
-                    <div class="summary-row">
-                        <span><i class="fas fa-trophy" style="color:#F39C12;"></i>Score</span>
-                        <strong>${d.score}%</strong>
-                    </div>
                     ${d.best_subject && d.best_subject.name ? `
                         <div class="summary-row">
-                            <span><i class="fas fa-star" style="color:#F39C12;"></i>Best Subject</span>
+                            <span><i class="fas fa-trophy" style="color:#F39C12;"></i>Best Subject</span>
                             <strong>${d.best_subject.name} (${d.best_subject.score}%)</strong>
                         </div>
                     ` : ''}
@@ -325,41 +842,30 @@ function loadDashboard() {
                             <strong>${String(d.peak_hour).padStart(2, '0')}:00</strong>
                         </div>
                     ` : ''}
-                    ${d.consistency_score ? `
-                        <div class="summary-row">
-                            <span><i class="fas fa-balance-scale" style="color:var(--primary);"></i>Consistency</span>
-                            <strong>${d.consistency_score}%</strong>
-                        </div>
-                    ` : ''}
                 `;
             } else {
                 container.innerHTML = `
                     <div style="text-align:center;color:#95A5A6;padding:30px 0;">
                         <i class="fas fa-inbox" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
                         <p>No sessions today</p>
-                        <p style="font-size:13px;margin-top:4px;">Start tracking your study sessions!</p>
+                        <p style="font-size:13px;margin-top:4px;">Start tracking your study sessions</p>
                     </div>
                 `;
             }
         })
         .catch(err => {
-            console.error('Error loading dashboard:', err);
-            const container = document.getElementById('todaySummary');
-            if (container) {
-                container.innerHTML = `
-                    <p style="color:#E74C3C;text-align:center;">
-                        <i class="fas fa-exclamation-circle"></i> Error loading dashboard
-                    </p>
-                `;
-            }
+            document.getElementById('todaySummary').innerHTML = `
+                <p style="color:#E74C3C;text-align:center;">
+                    <i class="fas fa-exclamation-circle"></i> Error loading dashboard
+                </p>
+            `;
         });
     
-    // Load subject breakdown for dashboard
     loadSubjectBreakdown();
 }
 
 // ==========================================
-// SUBJECT BREAKDOWN (Dashboard)
+// SUBJECT BREAKDOWN
 // ==========================================
 function loadSubjectBreakdown() {
     fetch('/api/subjects')
@@ -389,15 +895,12 @@ function loadSubjectBreakdown() {
                 
                 // Animate bars
                 setTimeout(() => {
-                    document.querySelectorAll('#subjectBreakdown .fill').forEach((bar, index) => {
-                        const subjectData = data.data.subjects[index];
-                        if (subjectData) {
-                            bar.style.width = `${subjectData[1].avg_productivity}%`;
-                        }
+                    document.querySelectorAll('.subject-item .fill').forEach((bar, index) => {
+                        const pct = data.data.subjects[index]?.[1]?.avg_productivity || 0;
+                        bar.style.width = `${pct}%`;
                     });
                 }, 300);
                 
-                // Update best subject stat
                 const statBestSubject = document.getElementById('statBestSubject');
                 if (statBestSubject) {
                     statBestSubject.textContent = data.data.best_subject ? data.data.best_subject[0] : '-';
@@ -412,15 +915,11 @@ function loadSubjectBreakdown() {
             }
         })
         .catch(err => {
-            console.error('Error loading subject breakdown:', err);
-            const container = document.getElementById('subjectBreakdown');
-            if (container) {
-                container.innerHTML = `
-                    <p style="color:#E74C3C;text-align:center;">
-                        <i class="fas fa-exclamation-circle"></i> Error loading subjects
-                    </p>
-                `;
-            }
+            document.getElementById('subjectBreakdown').innerHTML = `
+                <p style="color:#E74C3C;text-align:center;">
+                    <i class="fas fa-exclamation-circle"></i> Error loading subjects
+                </p>
+            `;
         });
 }
 
@@ -465,28 +964,23 @@ function loadSessions() {
                 });
                 container.innerHTML = html;
                 
-                // Update subject filter
                 updateSubjectFilter(data.data);
             } else {
                 container.innerHTML = `
                     <div style="text-align:center;color:#95A5A6;padding:30px 0;">
                         <i class="fas fa-book-open" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
                         <p>No sessions found</p>
-                        <p style="font-size:13px;margin-top:4px;">Start tracking your study sessions!</p>
+                        <p style="font-size:13px;margin-top:4px;">Start tracking your study sessions</p>
                     </div>
                 `;
             }
         })
         .catch(err => {
-            console.error('Error loading sessions:', err);
-            const container = document.getElementById('sessionsList');
-            if (container) {
-                container.innerHTML = `
-                    <p style="color:#E74C3C;text-align:center;">
-                        <i class="fas fa-exclamation-circle"></i> Error loading sessions
-                    </p>
-                `;
-            }
+            document.getElementById('sessionsList').innerHTML = `
+                <p style="color:#E74C3C;text-align:center;">
+                    <i class="fas fa-exclamation-circle"></i> Error loading sessions
+                </p>
+            `;
         });
 }
 
@@ -508,7 +1002,7 @@ function updateSubjectFilter(sessions) {
 
 function refreshSessions() {
     loadSessions();
-    showToast('🔄 Sessions refreshed', 'info');
+    showToast('Sessions refreshed', 'info');
 }
 
 function deleteSession(id) {
@@ -522,30 +1016,22 @@ function deleteSession(id) {
                 loadStats();
                 loadDashboard();
                 loadSubjectBreakdown();
-                showToast('✅ Session deleted successfully', 'success');
+                showToast('Session deleted successfully', 'success');
             } else {
-                showToast('❌ Error deleting session', 'error');
+                showToast('Error deleting session', 'error');
             }
         })
-        .catch(err => {
-            console.error('Error:', err);
-            showToast('❌ Error deleting session', 'error');
-        });
+        .catch(err => showToast('Error deleting session', 'error'));
 }
 
 // ==========================================
 // SESSION FILTERS
 // ==========================================
 function applyFilters() {
-    const date = document.getElementById('filterDate');
-    const subject = document.getElementById('filterSubject');
+    const date = document.getElementById('filterDate').value;
+    const subject = document.getElementById('filterSubject').value;
     
-    if (!date || !subject) return;
-    
-    const dateValue = date.value;
-    const subjectValue = subject.value;
-    
-    fetch(`/api/sessions?date=${dateValue}&subject=${subjectValue}`)
+    fetch(`/api/sessions?date=${date}&subject=${subject}`)
         .then(res => res.json())
         .then(data => {
             const container = document.getElementById('sessionsList');
@@ -589,31 +1075,23 @@ function applyFilters() {
                 `;
             }
         })
-        .catch(err => console.error('Error applying filters:', err));
+        .catch(err => console.error('Error:', err));
 }
 
 function clearFilters() {
-    const date = document.getElementById('filterDate');
-    const subject = document.getElementById('filterSubject');
-    const search = document.getElementById('searchSessions');
-    
-    if (date) date.value = '';
-    if (subject) subject.value = '';
-    if (search) search.value = '';
-    
+    document.getElementById('filterDate').value = '';
+    document.getElementById('filterSubject').value = '';
+    document.getElementById('searchSessions').value = '';
     loadSessions();
-    showToast('🧹 Filters cleared', 'info');
+    showToast('Filters cleared', 'info');
 }
 
 function searchSessions() {
-    const query = document.getElementById('searchSessions');
-    if (!query) return;
-    
-    const searchTerm = query.value.toLowerCase();
+    const query = document.getElementById('searchSessions').value.toLowerCase();
     const items = document.querySelectorAll('#sessionsList .session-item');
     items.forEach(item => {
         const text = item.textContent.toLowerCase();
-        item.style.display = text.includes(searchTerm) ? 'flex' : 'none';
+        item.style.display = text.includes(query) ? 'flex' : 'none';
     });
 }
 
@@ -673,7 +1151,6 @@ function loadSubjects() {
                 });
                 container.innerHTML = html;
                 
-                // Animate bars
                 setTimeout(() => {
                     document.querySelectorAll('#subjectAnalysis .fill').forEach((bar, index) => {
                         const subjectData = data.data.subjects[index];
@@ -687,21 +1164,17 @@ function loadSubjects() {
                     <div style="text-align:center;color:#95A5A6;padding:30px 0;">
                         <i class="fas fa-layer-group" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
                         <p>No subjects yet</p>
-                        <p style="font-size:13px;margin-top:4px;">Add sessions to see subject analysis!</p>
+                        <p style="font-size:13px;margin-top:4px;">Add sessions to see subject analysis</p>
                     </div>
                 `;
             }
         })
         .catch(err => {
-            console.error('Error loading subjects:', err);
-            const container = document.getElementById('subjectAnalysis');
-            if (container) {
-                container.innerHTML = `
-                    <p style="color:#E74C3C;text-align:center;">
-                        <i class="fas fa-exclamation-circle"></i> Error loading subject analysis
-                    </p>
-                `;
-            }
+            document.getElementById('subjectAnalysis').innerHTML = `
+                <p style="color:#E74C3C;text-align:center;">
+                    <i class="fas fa-exclamation-circle"></i> Error loading subject analysis
+                </p>
+            `;
         });
 }
 
@@ -719,57 +1192,84 @@ function loadInsights() {
                 const insights = data.data;
                 let html = '';
                 
-                // Optimal Times
-                if (insights.optimal_times && !insights.optimal_times.error) {
-                    const ot = insights.optimal_times;
-                    html += `
-                        <div class="insight-box">
-                            <h4><i class="fas fa-clock"></i> Best Time to Study</h4>
-                            <p>${String(ot.best_hour).padStart(2, '0')}:00</p>
-                            <div class="sub-text">${ot.best_hour_productivity}% average productivity</div>
-                        </div>
-                        <div style="padding:4px 0;margin-bottom:16px;">
-                            <p style="font-size:14px;color:var(--dark);">
-                                <i class="fas fa-lightbulb" style="color:#F39C12;margin-right:8px;"></i>
-                                ${ot.recommendation || 'Keep tracking to get personalized recommendations!'}
-                            </p>
-                        </div>
-                    `;
+                if (insights.patterns) {
+                    const patterns = insights.patterns;
+                    
+                    if (patterns.best_learning_time && patterns.best_learning_time.hour !== undefined) {
+                        const hour = patterns.best_learning_time.hour;
+                        const productivity = patterns.best_learning_time.avg_productivity || 0;
+                        html += `
+                            <div class="insight-box">
+                                <h4><i class="fas fa-clock"></i> Best Time to Study</h4>
+                                <p>${String(hour).padStart(2, '0')}:00</p>
+                                <div class="sub-text">${productivity}% average productivity</div>
+                            </div>
+                        `;
+                    }
+                    
+                    if (patterns.most_consistent_subject) {
+                        html += `
+                            <div style="padding:12px 16px; background:#f8f9fa; border-radius:12px; margin-bottom:12px;">
+                                <p style="font-size:14px;">
+                                    <i class="fas fa-trophy" style="color:#F39C12;"></i>
+                                    <strong>Most Consistent Subject:</strong> 
+                                    ${patterns.most_consistent_subject.subject} 
+                                    (${patterns.most_consistent_subject.avg}% avg)
+                                </p>
+                            </div>
+                        `;
+                    }
+                    
+                    if (patterns.distraction_patterns) {
+                        const dp = patterns.distraction_patterns;
+                        html += `
+                            <div style="padding:12px 16px; background:#f8f9fa; border-radius:12px; margin-bottom:12px;">
+                                <p style="font-size:14px;">
+                                    <i class="fas fa-exclamation-triangle" style="color:#F39C12;"></i>
+                                    <strong>Distraction Stats:</strong>
+                                    Avg: ${dp.avg_distractions || 0} | 
+                                    Zero-distraction sessions: ${dp.zero_distraction_sessions || 0}
+                                </p>
+                            </div>
+                        `;
+                    }
                 }
                 
-                // Trends
-                if (insights.trends && !insights.trends.error) {
-                    const trendEmoji = insights.trends.trend_direction === 'improving' ? '📈' : 
-                                      insights.trends.trend_direction === 'declining' ? '📉' : '➡️';
-                    const trendColor = insights.trends.trend_direction === 'improving' ? '#2ECC71' : 
-                                     insights.trends.trend_direction === 'declining' ? '#E74C3C' : '#F39C12';
+                if (insights.analysis && insights.analysis.overall_stats) {
+                    const stats = insights.analysis.overall_stats;
+                    
+                    let consistency = '--';
+                    if (insights.analysis.consistency !== undefined) {
+                        consistency = insights.analysis.consistency + '%';
+                    }
+                    
                     html += `
-                        <div style="background:#f8f9fa;padding:16px;border-radius:12px;margin-top:16px;">
+                        <div style="background:#f8f9fa;padding:16px;border-radius:12px;margin-top:12px;">
                             <h4 style="margin-bottom:8px;font-size:14px;">
-                                <i class="fas fa-chart-line" style="color:${trendColor};"></i> 
-                                Productivity Trends (30 days)
+                                <i class="fas fa-chart-line" style="color:var(--primary);"></i> 
+                                Productivity Stats
                             </h4>
                             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
                                 <div>
-                                    <div style="font-size:11px;color:#95A5A6;">Trend</div>
-                                    <div style="font-size:16px;font-weight:700;color:${trendColor};">
-                                        ${trendEmoji} ${insights.trends.trend_direction}
-                                    </div>
+                                    <div style="font-size:11px;color:#95A5A6;">Mean</div>
+                                    <div style="font-size:16px;font-weight:700;">${stats.mean || 0}%</div>
                                 </div>
                                 <div>
-                                    <div style="font-size:11px;color:#95A5A6;">Avg</div>
-                                    <div style="font-size:16px;font-weight:700;">${insights.trends.avg_productivity}%</div>
+                                    <div style="font-size:11px;color:#95A5A6;">Median</div>
+                                    <div style="font-size:16px;font-weight:700;">${stats.median || 0}%</div>
                                 </div>
                                 <div>
                                     <div style="font-size:11px;color:#95A5A6;">Consistency</div>
-                                    <div style="font-size:16px;font-weight:700;">${insights.trends.consistency}%</div>
+                                    <div style="font-size:16px;font-weight:700;">${consistency}</div>
                                 </div>
+                            </div>
+                            <div style="margin-top:8px;text-align:center;font-size:12px;color:#95A5A6;">
+                                Based on ${insights.total_sessions || 0} sessions
                             </div>
                         </div>
                     `;
                 }
                 
-                // Recommendations
                 if (insights.recommendations && insights.recommendations.length > 0) {
                     html += `
                         <div style="margin-top:16px;padding:16px;border-radius:12px;border:1px solid rgba(108,99,255,0.2);">
@@ -778,7 +1278,7 @@ function loadInsights() {
                             </h4>
                             <ul style="list-style:none;padding:0;">
                     `;
-                    insights.recommendations.slice(0, 3).forEach(rec => {
+                    insights.recommendations.slice(0, 5).forEach(rec => {
                         html += `
                             <li style="padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.05);font-size:13px;">
                                 <i class="fas fa-arrow-right" style="color:var(--primary);margin-right:8px;"></i>
@@ -792,10 +1292,18 @@ function loadInsights() {
                     `;
                 }
                 
+                if (insights.ai_confidence) {
+                    html += `
+                        <div style="margin-top:12px;text-align:center;font-size:12px;color:#95A5A6;">
+                            AI Confidence: ${insights.ai_confidence}%
+                        </div>
+                    `;
+                }
+                
                 container.innerHTML = html || `
                     <div style="text-align:center;color:#95A5A6;padding:30px 0;">
                         <i class="fas fa-robot" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
-                        <p>Add more sessions for AI insights!</p>
+                        <p>Add more sessions for AI insights</p>
                         <p style="font-size:13px;margin-top:4px;">Need at least 5 sessions for analysis</p>
                     </div>
                 `;
@@ -803,7 +1311,7 @@ function loadInsights() {
                 container.innerHTML = `
                     <div style="text-align:center;color:#95A5A6;padding:30px 0;">
                         <i class="fas fa-robot" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
-                        <p>Add more sessions for AI insights!</p>
+                        <p>${data.message || 'Add more sessions for AI insights'}</p>
                         <p style="font-size:13px;margin-top:4px;">Need at least 5 sessions for analysis</p>
                     </div>
                 `;
@@ -821,62 +1329,8 @@ function loadInsights() {
             }
         });
 }
-
-// ==========================================
-// WEEKLY CHART
-// ==========================================
-function loadWeeklyChart() {
-    fetch('/api/weekly')
-        .then(res => res.json())
-        .then(data => {
-            const container = document.getElementById('weeklyChart');
-            if (!container) return;
-            
-            if (data.success && data.data && data.data.weekly_reports) {
-                const reports = data.data.weekly_reports.slice(-5);
-                let bars = '';
-                const maxScore = Math.max(...reports.map(r => r.avg_productivity), 1);
-                
-                reports.forEach(r => {
-                    const height = (r.avg_productivity / maxScore) * 150;
-                    const color = r.avg_productivity >= 70 ? '#2ECC71' : r.avg_productivity >= 50 ? '#F39C12' : '#E74C3C';
-                    bars += `
-                        <div style="flex:1; text-align:center;">
-                            <div class="chart-bar" style="height: ${height}px; background: ${color};">
-                                <span class="tooltip">${r.avg_productivity}%</span>
-                            </div>
-                            <div class="chart-label">${r.week}</div>
-                            <div style="font-size:11px; font-weight:600; color:var(--dark);">${r.avg_productivity}%</div>
-                        </div>
-                    `;
-                });
-                
-                container.innerHTML = `
-                    <div class="productivity-chart">${bars}</div>
-                    <div style="text-align:center;font-size:13px;color:#95A5A6;margin-top:8px;">
-                        <i class="fas fa-chart-line"></i> Productivity trend over last ${reports.length} weeks
-                    </div>
-                `;
-            } else {
-                container.innerHTML = `
-                    <div style="text-align:center;color:#95A5A6;padding:20px 0;">
-                        <i class="fas fa-chart-bar" style="font-size:32px;display:block;margin-bottom:12px;"></i>
-                        No weekly data yet
-                    </div>
-                `;
-            }
-        })
-        .catch(err => {
-            console.error('Error loading weekly chart:', err);
-            const container = document.getElementById('weeklyChart');
-            if (container) {
-                container.innerHTML = `
-                    <p style="color:#E74C3C;text-align:center;">
-                        <i class="fas fa-exclamation-circle"></i> Error loading chart
-                    </p>
-                `;
-            }
-        });
+function loadAIInsights() {
+    loadInsights();
 }
 
 // ==========================================
@@ -917,7 +1371,7 @@ function addSession(e) {
     };
     
     if (!data.subject || !data.duration) {
-        showToast('⚠️ Please fill in subject and duration', 'warning');
+        showToast('Please fill in subject and duration', 'warning');
         return;
     }
     
@@ -942,14 +1396,14 @@ function addSession(e) {
             loadSessions();
             loadInsights();
             loadSubjects();
-            showToast('✅ Session added successfully!', 'success');
+            showToast('Session added successfully', 'success');
         } else {
-            showToast('❌ Error: ' + (data.error || 'Unknown error'), 'error');
+            showToast('Error: ' + (data.error || 'Unknown error'), 'error');
         }
     })
     .catch(err => {
         console.error('Error:', err);
-        showToast('❌ Error adding session', 'error');
+        showToast('Error adding session', 'error');
     })
     .finally(() => {
         if (btn) {
@@ -978,39 +1432,9 @@ setInterval(() => {
             loadStats();
             loadDashboard();
             loadSubjectBreakdown();
-            loadWeeklyChart();
-        } else if (id === 'page-sessions') {
-            // Don't auto-refresh sessions to avoid UI flicker
         }
     }
 }, 30000);
-
-// ==========================================
-// KEYBOARD SHORTCUTS
-// ==========================================
-document.addEventListener('keydown', function(e) {
-    // Ctrl + N = New Session
-    if (e.ctrlKey && e.key === 'n') {
-        e.preventDefault();
-        showAddModal();
-    }
-    // Escape = Close Modal
-    if (e.key === 'Escape') {
-        closeModal();
-    }
-    // Ctrl + 1-5 = Navigate to pages
-    if (e.ctrlKey && e.key >= '1' && e.key <= '5') {
-        e.preventDefault();
-        const pages = ['dashboard', 'sessions', 'subjects', 'insights', 'settings'];
-        const page = pages[parseInt(e.key) - 1];
-        if (page) {
-            const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
-            if (navItem) {
-                navItem.click();
-            }
-        }
-    }
-});
 
 console.log('🧠 Smart Study System loaded successfully!');
 console.log('📚 Track your study sessions and get AI insights!');
