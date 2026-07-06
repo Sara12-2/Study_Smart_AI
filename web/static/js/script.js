@@ -68,23 +68,13 @@ function showToast(message, type = 'success') {
     
     container.appendChild(toast);
     
-    // Add animation styles if not exists
     if (!document.getElementById('toastStyles')) {
         const style = document.createElement('style');
         style.id = 'toastStyles';
         style.textContent = `
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-            @keyframes slideOut {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(100%); opacity: 0; }
-            }
-            @keyframes confettiFall {
-                0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-                100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-            }
+            @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+            @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+            @keyframes confettiFall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
         `;
         document.head.appendChild(style);
     }
@@ -103,13 +93,11 @@ function toggleDarkMode() {
     const isDark = document.body.classList.contains('dark-mode');
     localStorage.setItem('darkMode', isDark);
     
-    // Update moon/sun icon
     const moonIcon = document.querySelector('.nav-item .fa-moon, .nav-item .fa-sun');
     if (moonIcon) {
         moonIcon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
     }
     
-    // Save preference via API
     fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -119,11 +107,9 @@ function toggleDarkMode() {
     showToast(isDark ? 'Dark mode enabled' : 'Light mode enabled', 'info');
 }
 
-// Check saved preference on load
 document.addEventListener('DOMContentLoaded', function() {
     if (localStorage.getItem('darkMode') === 'true') {
         document.body.classList.add('dark-mode');
-        // Update icon if exists
         const moonIcon = document.querySelector('.nav-item .fa-moon, .nav-item .fa-sun');
         if (moonIcon) {
             moonIcon.className = 'fas fa-sun';
@@ -132,20 +118,88 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ==========================================
-// EXPORT DATA
+// EXPORT DATA - FETCH + BLOB DOWNLOAD (FIXED & ENHANCED)
 // ==========================================
 function exportData() {
-    fetch('/api/analytics/export/csv')
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                window.location.href = data.file;
-                showToast('Data exported successfully', 'success');
-            } else {
-                showToast('No data to export', 'warning');
-            }
-        })
-        .catch(() => showToast('Export failed', 'error'));
+    const btn = document.getElementById('exportCSVBtn') || document.querySelector('.export-btn');
+    const originalText = btn ? btn.innerHTML : 'Export CSV';
+    
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+        btn.disabled = true;
+    }
+    
+    showToast('📤 Preparing export...', 'info');
+    console.log('📤 Starting CSV export...');
+    
+    fetch('/api/analytics/export/csv', {
+        method: 'GET',
+        headers: {
+            'Accept': 'text/csv, application/json'
+        }
+    })
+    .then(response => {
+        console.log('✅ Response status:', response.status);
+        
+        if (!response.ok) {
+            return response.text().then(text => {
+                try {
+                    const json = JSON.parse(text);
+                    throw new Error(json.error || `HTTP error! status: ${response.status}`);
+                } catch {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+            });
+        }
+        
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            return response.json().then(data => {
+                if (!data.success) {
+                    throw new Error(data.error || 'Export failed');
+                }
+                throw new Error('Unexpected JSON response');
+            });
+        }
+        
+        return response.blob();
+    })
+    .then(blob => {
+        console.log('📦 Blob size:', blob.size, 'bytes');
+        
+        if (blob.size === 0) {
+            throw new Error('Empty file - no data to export');
+        }
+        
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.style.display = 'none';
+        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        link.download = `study_data_${timestamp}.csv`;
+        
+        document.body.appendChild(link);
+        link.click();
+        
+        setTimeout(() => {
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        }, 200);
+        
+        showToast(`✅ CSV exported successfully! (${(blob.size / 1024).toFixed(1)} KB)`, 'success');
+        console.log('✅ Download complete!');
+    })
+    .catch(error => {
+        console.error('❌ Export error:', error);
+        showToast('❌ Export failed: ' + error.message, 'error');
+    })
+    .finally(() => {
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    });
 }
 
 // ==========================================
@@ -179,7 +233,6 @@ function checkAchievements(sessions) {
 }
 
 function showAchievement(message, icon = 'fa-trophy') {
-    // Confetti effect
     const colors = ['#6C63FF', '#2ECC71', '#F39C12', '#FF6584', '#3498DB', '#E74C3C'];
     for (let i = 0; i < 60; i++) {
         const confetti = document.createElement('div');
@@ -204,7 +257,6 @@ function showAchievement(message, icon = 'fa-trophy') {
         setTimeout(() => confetti.remove(), 4000);
     }
     
-    // Show achievement toast
     const container = document.getElementById('toastContainer');
     if (!container) return;
     
@@ -254,6 +306,70 @@ let currentPage = 'dashboard';
 let allSessions = [];
 
 // ==========================================
+// KEYBOARD SHORTCUTS - FULLY FIXED ✅
+// ==========================================
+
+// Remove any existing listeners to prevent duplicates
+document.removeEventListener('keydown', window._keyboardHandler);
+window.removeEventListener('keydown', window._keyboardHandler);
+
+function keyboardHandler(e) {
+    // 🔥 Check if modal is open
+    const modal = document.getElementById('addModal');
+    const isModalOpen = modal && modal.style.display === 'block';
+    
+    // 🔥 Ctrl+N - New Session (FIXED)
+    if (e.ctrlKey && (e.key === 'n' || e.key === 'N')) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        console.log('⌨️ Ctrl+N pressed → Opening modal');
+        showAddModal();
+        return false;
+    }
+    
+    // 🔥 Ctrl+1-5 - Navigation (FIXED)
+    if (e.ctrlKey && e.key >= '1' && e.key <= '5') {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        const pages = ['dashboard', 'sessions', 'subjects', 'insights', 'settings'];
+        const idx = parseInt(e.key) - 1;
+        if (idx < pages.length) {
+            console.log(`⌨️ Ctrl+${e.key} pressed → Navigating to ${pages[idx]}`);
+            navigateTo(pages[idx]);
+        }
+        return false;
+    }
+    
+    // 🔥 Escape - Close Modal (FIXED)
+    if (e.key === 'Escape' || e.key === 'Esc') {
+        if (isModalOpen) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            console.log('⌨️ Escape pressed → Closing modal');
+            closeModal();
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// Attach listener with capture phase for priority
+document.addEventListener('keydown', keyboardHandler, true);
+window.addEventListener('keydown', keyboardHandler, true);
+
+// Store reference for cleanup
+window._keyboardHandler = keyboardHandler;
+
+console.log('⌨️ Keyboard shortcuts initialized successfully!');
+console.log('  Ctrl+N → New Session');
+console.log('  Ctrl+1-5 → Navigate pages');
+console.log('  Escape → Close modal');
+
+// ==========================================
 // INITIALIZATION
 // ==========================================
 document.addEventListener('DOMContentLoaded', function() {
@@ -262,7 +378,6 @@ document.addEventListener('DOMContentLoaded', function() {
     loadStats();
     loadSessions();
     
-    // Navigation
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', function(e) {
             e.preventDefault();
@@ -273,48 +388,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Form submission
     const form = document.getElementById('sessionForm');
     if (form) {
         form.addEventListener('submit', addSession);
     }
     
-    // ==========================================
-    // REMOVED: Duplicate dark mode event listener
-    // onclick is already in HTML, so no need for addEventListener
-    // ==========================================
-    
-    // Keyboard shortcuts
-    document.addEventListener('keydown', function(e) {
-        if (e.ctrlKey && e.key === 'n') {
-            e.preventDefault();
-            if (typeof showAddModal === 'function') {
-                showAddModal();
-            }
-        }
-        if (e.key === 'Escape') {
-            if (typeof closeModal === 'function') {
-                closeModal();
-            }
-        }
-        if (e.ctrlKey && e.key >= '1' && e.key <= '5') {
-            e.preventDefault();
-            const pages = ['dashboard', 'sessions', 'subjects', 'insights', 'settings'];
-            const page = pages[parseInt(e.key) - 1];
-            if (page) {
-                if (typeof navigateTo === 'function') {
-                    navigateTo(page);
-                }
-            }
-        }
-    });
+    console.log('✅ StudySmart AI initialized successfully!');
 });
 
 // ==========================================
-// NAVIGATION - UPDATED WITH SETTINGS
+// NAVIGATION
 // ==========================================
 function navigateTo(page) {
-    // Page title mapping
     const titles = {
         dashboard: 'Dashboard',
         sessions: 'Sessions',
@@ -330,7 +415,6 @@ function navigateTo(page) {
         settings: 'fa-cog'
     };
     
-    // Update nav
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
     });
@@ -339,7 +423,6 @@ function navigateTo(page) {
         navItem.classList.add('active');
     }
     
-    // Update pages
     document.querySelectorAll('.page').forEach(p => {
         p.classList.remove('active');
     });
@@ -348,15 +431,13 @@ function navigateTo(page) {
         pageElement.classList.add('active');
     }
     
-    // Update title
     const titleElement = document.getElementById('pageTitle');
     if (titleElement && titles[page]) {
         titleElement.innerHTML = `
-            <i class="fas ${icons[page]}"></i> ${titles[page]}
+            <i class="fas ${icons[page]}" style="color: var(--primary); margin-right: 12px;"></i>${titles[page]}
         `;
     }
     
-    // Load content
     currentPage = page;
     switch(page) {
         case 'dashboard':
@@ -381,12 +462,10 @@ function navigateTo(page) {
 // ==========================================
 // SETTINGS PAGE
 // ==========================================
-
 function loadSettingsPage() {
     const container = document.getElementById('settingsContent');
     if (!container) return;
     
-    // Show loading
     container.innerHTML = `
         <div class="skeleton-wrapper">
             <div class="skeleton-line long"></div>
@@ -397,7 +476,6 @@ function loadSettingsPage() {
         </div>
     `;
     
-    // Fetch settings from API
     fetch('/api/settings')
         .then(response => response.json())
         .then(data => {
@@ -427,7 +505,6 @@ function renderSettingsForm(settings) {
     const container = document.getElementById('settingsContent');
     if (!container) return;
     
-    // Default settings if not provided
     const s = settings || {
         theme: 'light',
         notifications: true,
@@ -446,7 +523,6 @@ function renderSettingsForm(settings) {
     container.innerHTML = `
         <form id="settingsForm" onsubmit="saveSettings(event)">
             <div class="settings-grid">
-                <!-- Theme -->
                 <div class="settings-group">
                     <label>Theme</label>
                     <select id="settingTheme" class="settings-input">
@@ -455,8 +531,6 @@ function renderSettingsForm(settings) {
                         <option value="auto" ${s.theme === 'auto' ? 'selected' : ''}><i class="fas fa-sync-alt"></i> Auto</option>
                     </select>
                 </div>
-                
-                <!-- Language -->
                 <div class="settings-group">
                     <label>Language</label>
                     <select id="settingLanguage" class="settings-input">
@@ -465,8 +539,6 @@ function renderSettingsForm(settings) {
                         <option value="hi" ${s.language === 'hi' ? 'selected' : ''}><i class="fas fa-flag"></i> Hindi</option>
                     </select>
                 </div>
-                
-                <!-- Time Format -->
                 <div class="settings-group">
                     <label>Time Format</label>
                     <select id="settingTimeFormat" class="settings-input">
@@ -474,38 +546,28 @@ function renderSettingsForm(settings) {
                         <option value="24h" ${s.time_format === '24h' ? 'selected' : ''}><i class="fas fa-clock"></i> 24-hour</option>
                     </select>
                 </div>
-                
-                <!-- Daily Goal -->
                 <div class="settings-group">
                     <label>Daily Goal (minutes)</label>
                     <input type="number" id="settingDailyGoal" class="settings-input" 
                            value="${s.daily_goal}" min="30" max="480">
                     <span class="help-text"><i class="fas fa-info-circle"></i> Recommended: 120 min</span>
                 </div>
-                
-                <!-- Weekly Goal -->
                 <div class="settings-group">
                     <label>Weekly Goal (minutes)</label>
                     <input type="number" id="settingWeeklyGoal" class="settings-input" 
                            value="${s.weekly_goal}" min="120" max="1680">
                     <span class="help-text"><i class="fas fa-info-circle"></i> Recommended: 600 min</span>
                 </div>
-                
-                <!-- Default Subject -->
                 <div class="settings-group">
                     <label>Default Subject</label>
                     <input type="text" id="settingDefaultSubject" class="settings-input" 
                            value="${s.default_subject || ''}" placeholder="e.g., Python">
                 </div>
-                
-                <!-- Reminder Interval -->
                 <div class="settings-group">
                     <label>Reminder Interval (minutes)</label>
                     <input type="number" id="settingReminderInterval" class="settings-input" 
                            value="${s.reminder_interval}" min="15" max="180">
                 </div>
-                
-                <!-- Backup Interval -->
                 <div class="settings-group">
                     <label>Auto Backup (days)</label>
                     <input type="number" id="settingBackupInterval" class="settings-input" 
@@ -513,46 +575,38 @@ function renderSettingsForm(settings) {
                 </div>
             </div>
             
-            <!-- Toggle Switches -->
             <div class="settings-toggles">
                 <div class="toggle-group">
                     <label class="toggle-label">
                         <span><i class="fas fa-bell"></i> Notifications</span>
-                        <div class="toggle-switch ${s.notifications ? 'active' : ''}" 
-                             onclick="toggleSwitch(this)">
+                        <div class="toggle-switch ${s.notifications ? 'active' : ''}" onclick="toggleSwitch(this)">
                             <input type="hidden" id="settingNotifications" value="${s.notifications}">
                             <span class="toggle-slider"></span>
                         </div>
                     </label>
                 </div>
-                
                 <div class="toggle-group">
                     <label class="toggle-label">
                         <span><i class="fas fa-clock"></i> Study Reminder</span>
-                        <div class="toggle-switch ${s.study_reminder ? 'active' : ''}" 
-                             onclick="toggleSwitch(this)">
+                        <div class="toggle-switch ${s.study_reminder ? 'active' : ''}" onclick="toggleSwitch(this)">
                             <input type="hidden" id="settingStudyReminder" value="${s.study_reminder}">
                             <span class="toggle-slider"></span>
                         </div>
                     </label>
                 </div>
-                
                 <div class="toggle-group">
                     <label class="toggle-label">
                         <span><i class="fas fa-volume-up"></i> Sound Effects</span>
-                        <div class="toggle-switch ${s.sound_effects ? 'active' : ''}" 
-                             onclick="toggleSwitch(this)">
+                        <div class="toggle-switch ${s.sound_effects ? 'active' : ''}" onclick="toggleSwitch(this)">
                             <input type="hidden" id="settingSoundEffects" value="${s.sound_effects}">
                             <span class="toggle-slider"></span>
                         </div>
                     </label>
                 </div>
-                
                 <div class="toggle-group">
                     <label class="toggle-label">
                         <span><i class="fas fa-database"></i> Auto Backup</span>
-                        <div class="toggle-switch ${s.auto_backup ? 'active' : ''}" 
-                             onclick="toggleSwitch(this)">
+                        <div class="toggle-switch ${s.auto_backup ? 'active' : ''}" onclick="toggleSwitch(this)">
                             <input type="hidden" id="settingAutoBackup" value="${s.auto_backup}">
                             <span class="toggle-slider"></span>
                         </div>
@@ -627,22 +681,14 @@ function saveSettings(event) {
                     <i class="fas fa-check-circle"></i> Settings saved successfully!
                 </div>
             `;
-            
-            // Apply theme immediately
             applyTheme(settings.theme);
-            
-            // Update dark mode icon
             const isDark = settings.theme === 'dark';
             const moonIcon = document.querySelector('.nav-item .fa-moon, .nav-item .fa-sun');
             if (moonIcon) {
                 moonIcon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
             }
-            
             showToast('Settings saved successfully!', 'success');
-            
-            setTimeout(() => {
-                messageEl.innerHTML = '';
-            }, 3000);
+            setTimeout(() => messageEl.innerHTML = '', 3000);
         } else {
             messageEl.innerHTML = `
                 <div class="error-message">
@@ -689,7 +735,6 @@ function resetSettings() {
                     <i class="fas fa-check-circle"></i> Settings reset to default!
                 </div>
             `;
-            // Reload settings
             loadSettingsPage();
             showToast('Settings reset to default', 'info');
         } else {
@@ -699,10 +744,7 @@ function resetSettings() {
                 </div>
             `;
         }
-        
-        setTimeout(() => {
-            messageEl.innerHTML = '';
-        }, 3000);
+        setTimeout(() => messageEl.innerHTML = '', 3000);
     })
     .catch(error => {
         console.error('Error resetting settings:', error);
@@ -751,8 +793,7 @@ function updateDate() {
     const now = new Date();
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     
-    const dateElements = document.querySelectorAll('#currentDate, .date-display');
-    dateElements.forEach(el => {
+    document.querySelectorAll('#currentDate, .date-display').forEach(el => {
         if (el) {
             el.innerHTML = `<i class="far fa-calendar-alt"></i> ${now.toLocaleDateString('en-US', options)}`;
         }
@@ -774,7 +815,6 @@ function loadStats() {
             if (data.success) {
                 const sessions = data.data.total_sessions || 0;
                 
-                // Update stats cards with animation
                 const statElements = {
                     'statSessions': sessions,
                     'statTime': `${data.data.total_time || 0} min`,
@@ -787,7 +827,6 @@ function loadStats() {
                     const el = document.getElementById(id);
                     if (el) {
                         el.textContent = value;
-                        // Animation effect
                         el.style.transition = 'transform 0.3s ease';
                         el.style.transform = 'scale(1.1)';
                         setTimeout(() => {
@@ -913,7 +952,6 @@ function loadSubjectBreakdown() {
                 html += '</div>';
                 container.innerHTML = html;
                 
-                // Animate progress bars
                 setTimeout(() => {
                     document.querySelectorAll('.subject-card .progress-fill').forEach(bar => {
                         bar.style.transition = 'width 1s ease';
@@ -975,7 +1013,10 @@ function loadSessions() {
                             </div>
                             <div style="display:flex;align-items:center;gap:10px;">
                                 <span class="session-score ${scoreClass}">${score}%</span>
-                                <button class="btn btn-secondary btn-sm" onclick="deleteSession(${actualIndex})" style="color:#E74C3C;border-color:#E74C3C;">
+                                <button class="btn btn-secondary btn-sm" onclick="deleteSession(${actualIndex})" 
+                                        style="color:#E74C3C;border-color:#E74C3C;padding:4px 12px;border-radius:8px;cursor:pointer;transition:all 0.3s ease;background:transparent;border:1px solid #E74C3C;"
+                                        onmouseover="this.style.background='#E74C3C';this.style.color='white'"
+                                        onmouseout="this.style.background='transparent';this.style.color='#E74C3C'">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -983,7 +1024,6 @@ function loadSessions() {
                     `;
                 });
                 container.innerHTML = html;
-                
                 updateSubjectFilter(data.data);
             } else {
                 container.innerHTML = `
@@ -1026,8 +1066,138 @@ function refreshSessions() {
     showToast('Sessions refreshed', 'info');
 }
 
+// ==========================================
+// DELETE SESSION - PREMIUM CUSTOM CONFIRMATION
+// ==========================================
 function deleteSession(id) {
-    if (!confirm('Delete this session?')) return;
+    showDeleteConfirmation(id);
+}
+
+function showDeleteConfirmation(id) {
+    const existing = document.getElementById('deleteConfirmModal');
+    if (existing) existing.remove();
+    
+    const modal = document.createElement('div');
+    modal.id = 'deleteConfirmModal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(12px);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s ease;
+    `;
+    
+    const isDark = document.body.classList.contains('dark-mode');
+    
+    modal.innerHTML = `
+        <div style="
+            background: ${isDark ? '#2d2d44' : '#ffffff'};
+            border-radius: 20px;
+            padding: 32px 40px;
+            max-width: 440px;
+            width: 90%;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.3);
+            border: 1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'};
+            animation: scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: center;
+        ">
+            <div style="
+                width: 64px;
+                height: 64px;
+                border-radius: 50%;
+                background: rgba(231,76,60,0.12);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto 16px;
+            ">
+                <i class="fas fa-exclamation-triangle" style="color: #E74C3C; font-size: 28px;"></i>
+            </div>
+            
+            <h3 style="
+                font-size: 20px;
+                font-weight: 700;
+                color: ${isDark ? '#E8E8F0' : '#1a1a2e'};
+                margin-bottom: 8px;
+                font-family: 'Inter', sans-serif;
+            ">Delete Session?</h3>
+            
+            <p style="
+                font-size: 14px;
+                color: ${isDark ? '#95A5A6' : '#95A5A6'};
+                margin-bottom: 24px;
+                font-family: 'Inter', sans-serif;
+                line-height: 1.6;
+            ">This action cannot be undone. Are you sure you want to delete this session?</p>
+            
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button onclick="closeDeleteConfirmation()" style="
+                    padding: 10px 28px;
+                    border-radius: 12px;
+                    border: 1px solid ${isDark ? 'rgba(255,255,255,0.1)' : '#E8E8F0'};
+                    background: ${isDark ? 'rgba(255,255,255,0.05)' : '#f8f9fa'};
+                    color: ${isDark ? '#95A5A6' : '#4A4A6A'};
+                    font-size: 14px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    font-family: 'Inter', sans-serif;
+                " onmouseover="this.style.background='${isDark ? 'rgba(255,255,255,0.1)' : '#e8ecf1'}'" 
+                   onmouseout="this.style.background='${isDark ? 'rgba(255,255,255,0.05)' : '#f8f9fa'}'">
+                    Cancel
+                </button>
+                <button onclick="confirmDelete(${id})" style="
+                    padding: 10px 28px;
+                    border-radius: 12px;
+                    border: none;
+                    background: #E74C3C;
+                    color: white;
+                    font-size: 14px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    font-family: 'Inter', sans-serif;
+                    box-shadow: 0 4px 16px rgba(231,76,60,0.3);
+                " onmouseover="this.style.background='#C0392B'; this.style.transform='translateY(-2px)'"
+                   onmouseout="this.style.background='#E74C3C'; this.style.transform='translateY(0)'">
+                    <i class="fas fa-trash" style="margin-right: 8px;"></i> Delete
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    if (!document.getElementById('modalAnimationStyles')) {
+        const style = document.createElement('style');
+        style.id = 'modalAnimationStyles';
+        style.textContent = `
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+            @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+        `;
+        document.head.appendChild(style);
+    }
+}
+
+function closeDeleteConfirmation() {
+    const modal = document.getElementById('deleteConfirmModal');
+    if (modal) {
+        modal.style.animation = 'fadeOut 0.2s ease';
+        setTimeout(() => modal.remove(), 250);
+    }
+}
+
+function confirmDelete(id) {
+    closeDeleteConfirmation();
+    showToast('Deleting session...', 'info');
     
     fetch(`/api/sessions/${id}`, { method: 'DELETE' })
         .then(res => res.json())
@@ -1037,12 +1207,15 @@ function deleteSession(id) {
                 loadStats();
                 loadDashboard();
                 loadSubjectBreakdown();
-                showToast('Session deleted successfully', 'success');
+                showToast('Session deleted successfully!', 'success');
             } else {
                 showToast('Error deleting session', 'error');
             }
         })
-        .catch(err => showToast('Error deleting session', 'error'));
+        .catch(err => {
+            console.error('Error:', err);
+            showToast('Error deleting session', 'error');
+        });
 }
 
 // ==========================================
@@ -1079,7 +1252,10 @@ function applyFilters() {
                             </div>
                             <div style="display:flex;align-items:center;gap:10px;">
                                 <span class="session-score ${scoreClass}">${score}%</span>
-                                <button class="btn btn-secondary btn-sm" onclick="deleteSession(${actualIndex})" style="color:#E74C3C;border-color:#E74C3C;">
+                                <button class="btn btn-secondary btn-sm" onclick="deleteSession(${actualIndex})" 
+                                        style="color:#E74C3C;border-color:#E74C3C;padding:4px 12px;border-radius:8px;cursor:pointer;transition:all 0.3s ease;background:transparent;border:1px solid #E74C3C;"
+                                        onmouseover="this.style.background='#E74C3C';this.style.color='white'"
+                                        onmouseout="this.style.background='transparent';this.style.color='#E74C3C'">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -1209,7 +1385,6 @@ function loadInsights() {
                 const insights = data.data;
                 let html = '<div class="insights-container">';
                 
-                // Best Time
                 if (insights.patterns?.best_learning_time) {
                     const hour = insights.patterns.best_learning_time.hour;
                     const productivity = insights.patterns.best_learning_time.avg_productivity;
@@ -1223,7 +1398,6 @@ function loadInsights() {
                     `;
                 }
                 
-                // Stats Cards
                 if (insights.analysis?.overall_stats) {
                     const stats = insights.analysis.overall_stats;
                     const consistency = insights.analysis.consistency || 0;
@@ -1249,7 +1423,6 @@ function loadInsights() {
                     `;
                 }
                 
-                // Recommendations
                 if (insights.recommendations && insights.recommendations.length > 0) {
                     html += `
                         <div class="recommendations-card">
@@ -1265,7 +1438,6 @@ function loadInsights() {
                     `;
                 }
                 
-                // AI Confidence
                 if (insights.ai_confidence) {
                     html += `
                         <div class="confidence-bar">
@@ -1312,6 +1484,10 @@ function showAddModal() {
     if (modal) {
         modal.style.display = 'block';
         document.getElementById('sessionForm').reset();
+        setTimeout(() => {
+            const firstInput = document.getElementById('subject');
+            if (firstInput) firstInput.focus();
+        }, 100);
     }
 }
 
@@ -1384,7 +1560,6 @@ function addSession(e) {
     });
 }
 
-// Click outside modal to close
 window.onclick = function(event) {
     const modal = document.getElementById('addModal');
     if (modal && event.target === modal) {
@@ -1407,9 +1582,9 @@ setInterval(() => {
     }
 }, 30000);
 
-console.log('Smart Study System loaded successfully!');
-console.log('Track your study sessions and get AI insights!');
-console.log('Keyboard Shortcuts:');
+console.log('✅ Smart Study System loaded successfully!');
+console.log('📊 Track your study sessions and get AI insights!');
+console.log('⌨️ Keyboard Shortcuts:');
 console.log('  Ctrl+N - New Session');
 console.log('  Ctrl+1-5 - Navigate pages');
 console.log('  Escape - Close modal');
