@@ -7,9 +7,11 @@ import os
 import sys
 import logging
 import json
+import csv
 from datetime import datetime
-from flask import Flask, render_template, jsonify, request, session
+from flask import Flask, render_template, jsonify, request, session, make_response
 from flask_cors import CORS
+from io import StringIO
 
 # Fix Windows encoding
 if sys.platform == 'win32':
@@ -41,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# ==================== 🔥 SECRET KEY FOR SESSION (NEW) ====================
+# ==================== SECRET KEY FOR SESSION ====================
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production-2024')
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 hours
@@ -55,16 +57,14 @@ analyzer = AIAnalyzer()
 predictor = AIPredictor()
 recommender = AIRecommender()
 
-# ==================== 🔥 USER SETTINGS HELPER (NEW) ====================
+# ==================== USER SETTINGS HELPER ====================
 
 def get_user_settings():
     """Load user settings from file or session"""
     try:
-        # Try to load from session first
         if 'user_settings' in session:
             return session['user_settings']
         
-        # Then try to load from file
         settings_file = os.path.join(os.path.dirname(__file__), '..', 'data', 'user_settings.json')
         if os.path.exists(settings_file):
             with open(settings_file, 'r', encoding='utf-8') as f:
@@ -74,7 +74,6 @@ def get_user_settings():
     except Exception as e:
         logger.error(f"Error loading user settings: {e}")
     
-    # Return default settings
     return get_default_settings()
 
 def get_default_settings():
@@ -91,33 +90,26 @@ def get_default_settings():
         'time_format': '24h',
         'sound_effects': True,
         'auto_backup': True,
-        'backup_interval': 7  # days
+        'backup_interval': 7
     }
 
 def save_user_settings(settings_data):
     """Save user settings to file and session"""
     try:
-        # Validate settings
         valid_keys = ['theme', 'notifications', 'study_reminder', 'reminder_interval', 
                      'default_subject', 'daily_goal', 'weekly_goal', 'language', 
                      'time_format', 'sound_effects', 'auto_backup', 'backup_interval']
         
-        # Filter only valid keys
         filtered_data = {k: v for k, v in settings_data.items() if k in valid_keys}
-        
-        # Load existing settings and update
         existing = get_user_settings()
         existing.update(filtered_data)
         
-        # Save to file
         settings_file = os.path.join(os.path.dirname(__file__), '..', 'data', 'user_settings.json')
         os.makedirs(os.path.dirname(settings_file), exist_ok=True)
         with open(settings_file, 'w', encoding='utf-8') as f:
             json.dump(existing, f, indent=2)
         
-        # Save to session
         session['user_settings'] = existing
-        
         logger.info("User settings saved successfully")
         return True
     except Exception as e:
@@ -129,49 +121,31 @@ def save_user_settings(settings_data):
 
 @app.route('/')
 def index():
-    """Home page - Dashboard"""
     return render_template('index.html')
-
 
 @app.route('/dashboard')
 def dashboard():
-    """Dashboard page"""
     return render_template('dashboard.html')
-
 
 @app.route('/sessions')
 def sessions_page():
-    """Sessions management page"""
     return render_template('index.html')
-
-
-# ==================== 🔥 SETTINGS ROUTE (NEW) ====================
-
-@app.route('/settings')
-def settings_page():
-    """Settings page - User preferences and configuration"""
-    settings = get_user_settings()
-    return render_template('settings.html', settings=settings)
 
 
 # ==================== SESSION ROUTES ====================
 
 @app.route('/api/sessions', methods=['GET'])
 def get_sessions():
-    """Get all sessions with optional filters"""
     try:
         sessions = storage.load_all_sessions()
-        
         subject = request.args.get('subject')
         date = request.args.get('date')
         limit = request.args.get('limit')
         
         if subject:
             sessions = [s for s in sessions if s.get('subject', '').lower() == subject.lower()]
-        
         if date:
             sessions = [s for s in sessions if s.get('timestamp', '').startswith(date)]
-        
         if limit:
             sessions = sessions[-int(limit):]
         
@@ -181,21 +155,17 @@ def get_sessions():
             'count': len(sessions),
             'total': storage.get_session_count()
         })
-        
     except Exception as e:
         logger.error(f"Error getting sessions: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
 @app.route('/api/sessions', methods=['POST'])
 def add_session():
-    """Add a new session"""
     try:
         data = request.get_json()
         
         if not data.get('subject'):
             return jsonify({'success': False, 'error': 'Subject is required'}), 400
-        
         if not data.get('duration'):
             return jsonify({'success': False, 'error': 'Duration is required'}), 400
         
@@ -226,15 +196,12 @@ def add_session():
             })
         else:
             return jsonify({'success': False, 'error': 'Failed to save session'}), 500
-            
     except Exception as e:
         logger.error(f"Error adding session: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
 @app.route('/api/sessions/<int:session_id>', methods=['DELETE'])
 def delete_session(session_id):
-    """Delete a session by ID"""
     try:
         if storage.delete_session(session_id):
             logger.info(f"Session deleted: {session_id}")
@@ -246,32 +213,24 @@ def delete_session(session_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-# ==================== 🔥 SETTINGS API ROUTES (NEW) ====================
+# ==================== SETTINGS API ROUTES ====================
 
 @app.route('/api/settings', methods=['GET'])
 def api_get_settings():
-    """Get user settings via API"""
     try:
         settings = get_user_settings()
-        return jsonify({
-            'success': True,
-            'data': settings
-        })
+        return jsonify({'success': True, 'data': settings})
     except Exception as e:
         logger.error(f"Error getting settings: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
 @app.route('/api/settings', methods=['POST', 'PUT'])
 def api_update_settings():
-    """Update user settings via API"""
     try:
         if not request.is_json:
             return jsonify({'success': False, 'error': 'Content-Type must be application/json'}), 400
         
         data = request.get_json()
-        
-        # Save settings
         if save_user_settings(data):
             return jsonify({
                 'success': True,
@@ -280,18 +239,14 @@ def api_update_settings():
             })
         else:
             return jsonify({'success': False, 'error': 'Failed to update settings'}), 500
-            
     except Exception as e:
         logger.error(f"Error updating settings: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
 @app.route('/api/settings/reset', methods=['POST'])
 def api_reset_settings():
-    """Reset settings to default"""
     try:
         default_settings = get_default_settings()
-        
         if save_user_settings(default_settings):
             return jsonify({
                 'success': True,
@@ -300,7 +255,6 @@ def api_reset_settings():
             })
         else:
             return jsonify({'success': False, 'error': 'Failed to reset settings'}), 500
-            
     except Exception as e:
         logger.error(f"Error resetting settings: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -310,10 +264,8 @@ def api_reset_settings():
 
 @app.route('/api/dashboard')
 def get_dashboard():
-    """Get today's dashboard data"""
     try:
         date = request.args.get('date')
-        
         if date:
             summary = engine.calculate_daily_summary(date)
         else:
@@ -323,15 +275,12 @@ def get_dashboard():
             return jsonify({'success': True, 'data': summary})
         else:
             return jsonify({'success': True, 'data': None, 'message': 'No sessions for this date'})
-            
     except Exception as e:
         logger.error(f"Error getting dashboard: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
 @app.route('/api/weekly')
 def get_weekly():
-    """Get weekly report"""
     try:
         report = engine.generate_weekly_report()
         return jsonify({'success': True, 'data': report})
@@ -339,10 +288,8 @@ def get_weekly():
         logger.error(f"Error getting weekly report: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
 @app.route('/api/subjects')
 def get_subjects():
-    """Get subject analysis"""
     try:
         analysis = engine.analyze_subject_performance()
         return jsonify({'success': True, 'data': analysis})
@@ -350,10 +297,8 @@ def get_subjects():
         logger.error(f"Error getting subject analysis: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
 @app.route('/api/trends')
 def get_trends():
-    """Get productivity trends"""
     try:
         days = int(request.args.get('days', 30))
         trends = engine.get_productivity_trends(days)
@@ -362,10 +307,8 @@ def get_trends():
         logger.error(f"Error getting trends: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
 @app.route('/api/optimal-times')
 def get_optimal_times():
-    """Get optimal study times"""
     try:
         optimal = engine.get_optimal_study_times()
         return jsonify({'success': True, 'data': optimal})
@@ -378,7 +321,6 @@ def get_optimal_times():
 
 @app.route('/api/insights')
 def get_insights():
-    """Get AI insights"""
     try:
         sessions = storage.load_all_sessions()
         insights = analyzer.generate_insights(sessions)
@@ -387,10 +329,8 @@ def get_insights():
         logger.error(f"Error getting insights: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
 @app.route('/api/predictions')
 def get_predictions():
-    """Get AI predictions"""
     try:
         sessions = storage.load_all_sessions()
         predictions = predictor.predict_all(sessions)
@@ -399,10 +339,8 @@ def get_predictions():
         logger.error(f"Error getting predictions: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
 @app.route('/api/recommendations')
 def get_recommendations():
-    """Get AI recommendations"""
     try:
         sessions = storage.load_all_sessions()
         recommendations = recommender.get_recommendations(sessions)
@@ -423,7 +361,6 @@ def get_recommendations():
 
 @app.route('/api/stats')
 def get_stats():
-    """Get system statistics"""
     try:
         stats = storage.get_statistics()
         sessions = storage.load_all_sessions()
@@ -459,7 +396,6 @@ def get_stats():
                 'consistency': round(consistency, 2)
             }
         })
-        
     except Exception as e:
         logger.error(f"Error getting stats: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -469,7 +405,6 @@ def get_stats():
 
 @app.route('/api/backup', methods=['POST'])
 def create_backup():
-    """Create a backup"""
     try:
         backup_file = storage.create_backup()
         return jsonify({
@@ -481,10 +416,8 @@ def create_backup():
         logger.error(f"Error creating backup: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
 @app.route('/api/backup', methods=['GET'])
 def list_backups():
-    """List all backups"""
     try:
         backup_dir = 'data/backups'
         backups = []
@@ -504,18 +437,14 @@ def list_backups():
             'success': True,
             'data': sorted(backups, key=lambda x: x['created'], reverse=True)
         })
-        
     except Exception as e:
         logger.error(f"Error listing backups: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
 @app.route('/api/backup/<backup_name>', methods=['POST'])
 def restore_backup(backup_name):
-    """Restore from backup"""
     try:
         backup_path = os.path.join('data/backups', backup_name)
-        
         if not os.path.exists(backup_path):
             return jsonify({'success': False, 'error': 'Backup file not found'}), 404
         
@@ -523,9 +452,51 @@ def restore_backup(backup_name):
             return jsonify({'success': True, 'message': 'Backup restored successfully'})
         else:
             return jsonify({'success': False, 'error': 'Failed to restore backup'}), 500
-            
     except Exception as e:
         logger.error(f"Error restoring backup: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== EXPORT - FIXED ====================
+
+@app.route('/api/analytics/export/csv', methods=['GET'])
+def export_analytics_csv():
+    """Export data as downloadable CSV file"""
+    try:
+        sessions = storage.load_all_sessions()
+        
+        if not sessions:
+            logger.warning("No data to export")
+            return jsonify({
+                'success': False,
+                'error': 'No data to export'
+            }), 404
+        
+        # Create CSV in memory
+        output = StringIO()
+        fieldnames = list(sessions[0].keys())
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(sessions)
+        
+        csv_content = output.getvalue()
+        output.close()
+        
+        # Create response with proper CSV headers
+        response = make_response(csv_content)
+        response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+        response.headers['Content-Disposition'] = f'attachment; filename=study_data_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        
+        logger.info(f"✅ Data exported: {len(sessions)} sessions")
+        return response
+            
+    except Exception as e:
+        logger.error(f"❌ Error exporting data: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -533,10 +504,8 @@ def restore_backup(backup_name):
 
 @app.route('/api/clear', methods=['DELETE'])
 def clear_sessions():
-    """Clear all sessions"""
     try:
         confirm = request.args.get('confirm', 'false')
-        
         if confirm != 'true':
             return jsonify({
                 'success': False,
@@ -547,32 +516,8 @@ def clear_sessions():
             return jsonify({'success': True, 'message': 'All sessions cleared'})
         else:
             return jsonify({'success': False, 'error': 'Failed to clear sessions'}), 500
-            
     except Exception as e:
         logger.error(f"Error clearing sessions: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-# ==================== EXPORT ====================
-
-@app.route('/api/analytics/export/<format_type>')
-def export_analytics(format_type):
-    """Export data in specified format"""
-    try:
-        from src.core.analytics import AnalyticsEngine
-        analytics = AnalyticsEngine(storage, engine)
-        
-        filepath = analytics.export_data(format_type)
-        if filepath:
-            return jsonify({
-                'success': True,
-                'file': f'/{filepath}',
-                'message': f'Data exported as {format_type.upper()}'
-            })
-        else:
-            return jsonify({'success': False, 'error': 'No data to export'}), 404
-    except Exception as e:
-        logger.error(f"Error exporting data: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -580,7 +525,6 @@ def export_analytics(format_type):
 
 @app.route('/api/health')
 def health_check():
-    """Health check endpoint"""
     return jsonify({
         'success': True,
         'status': 'healthy',
@@ -595,13 +539,10 @@ def health_check():
 
 @app.errorhandler(404)
 def not_found(error):
-    """404 error handler"""
     return jsonify({'success': False, 'error': 'Resource not found'}), 404
-
 
 @app.errorhandler(500)
 def internal_error(error):
-    """500 error handler"""
     logger.error(f"Internal server error: {error}")
     return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
@@ -609,12 +550,10 @@ def internal_error(error):
 # ==================== MAIN ====================
 
 if __name__ == '__main__':
-    # Create necessary directories
     os.makedirs('logs', exist_ok=True)
     os.makedirs('exports', exist_ok=True)
     os.makedirs('data', exist_ok=True)
     
-    # Use environment variables for configuration
     DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     PORT = int(os.getenv('PORT', 5000))
     
@@ -631,9 +570,10 @@ if __name__ == '__main__':
     logger.info("  GET  /api/predictions - AI predictions")
     logger.info("  GET  /api/recommendations - AI recommendations")
     logger.info("  GET  /api/stats - System statistics")
-    logger.info("  GET  /api/settings - Get user settings")  # New
-    logger.info("  POST /api/settings - Update user settings")  # New
-    logger.info("  POST /api/settings/reset - Reset settings")  # New
+    logger.info("  GET  /api/settings - Get user settings")
+    logger.info("  POST /api/settings - Update user settings")
+    logger.info("  POST /api/settings/reset - Reset settings")
+    logger.info("  GET  /api/analytics/export/csv - Export data (direct download)")
     logger.info("  GET  /api/health - Health check")
     
     app.run(debug=DEBUG, host='0.0.0.0', port=PORT)
