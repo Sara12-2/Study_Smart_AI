@@ -11,6 +11,9 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
+    <!-- Chart.js for Charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     
     <style>
@@ -148,11 +151,72 @@
         }
         
         /* ==========================================
+           CHART CONTAINER STYLES
+           ========================================== */
+        .chart-container {
+            position: relative;
+            height: 200px;
+            width: 100%;
+            margin: 8px 0;
+        }
+        
+        .chart-container canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        
+        .chart-card {
+            background: rgba(255,255,255,0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 14px;
+            padding: 16px;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .chart-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(108,99,255,0.08);
+        }
+        
+        body.dark-mode .chart-card {
+            background: rgba(45,45,68,0.6);
+            border-color: rgba(255,255,255,0.06);
+        }
+        
+        .chart-card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        body.dark-mode .chart-card-title {
+            color: #E8E8F0;
+        }
+        
+        .chart-card-title i {
+            color: #6C5CE7;
+        }
+        
+        /* ==========================================
            RESPONSIVE
            ========================================== */
         @media (max-width: 992px) {
             .dashboard-grid {
                 grid-template-columns: 1fr;
+            }
+            .chart-grid {
+                grid-template-columns: 1fr 1fr;
             }
         }
         
@@ -161,15 +225,19 @@
                 grid-template-columns: 1fr 1fr;
                 gap: 12px;
             }
-            
             .stat-card .stat-value {
                 font-size: 20px;
             }
-            
             .stat-card .stat-icon {
                 width: 44px;
                 height: 44px;
                 font-size: 18px;
+            }
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+            .chart-container {
+                height: 160px;
             }
         }
         
@@ -177,20 +245,20 @@
             .stats-grid {
                 grid-template-columns: 1fr;
             }
-            
             .stat-card {
                 padding: 16px;
             }
-            
             .card-header {
                 padding: 14px 16px;
                 flex-direction: column;
                 gap: 8px;
                 align-items: flex-start;
             }
-            
             .card-body {
                 padding: 16px;
+            }
+            .chart-container {
+                height: 140px;
             }
         }
         
@@ -256,9 +324,6 @@
                     <span>AI Insights</span>
                 </a>
                 
-                <!-- ==========================================
-                🔥 SETTINGS - FIXED
-                ========================================== -->
                 <a href="#" class="nav-item" data-page="settings" onclick="navigateTo('settings')">
                     <i class="fas fa-cog"></i>
                     <span>Settings</span>
@@ -288,9 +353,6 @@
                     <h1 id="pageTitle"><i class="fas fa-chart-pie" style="color: var(--primary); margin-right: 12px;"></i>Dashboard</h1>
                 </div>
                 <div class="user-area">
-                    <!-- ==========================================
-                    🔥 SETTINGS BUTTON IN TOP BAR
-                    ========================================== -->
                     <button class="btn btn-secondary" onclick="navigateTo('settings')" title="Settings">
                         <i class="fas fa-cog"></i>
                     </button>
@@ -373,15 +435,26 @@
                                 </div>
                             </div>
                             
-                            <!-- Weekly Chart -->
+                            <!-- Weekly Chart - Using Chart.js -->
                             <div class="card">
                                 <div class="card-header">
                                     <h3><i class="fas fa-chart-bar"></i>Weekly Productivity</h3>
                                 </div>
-                                <div class="card-body" id="weeklyChart">
-                                    <div class="loading">
-                                        <i class="fas fa-spinner fa-spin"></i>
-                                        Loading chart...
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="weeklyChartCanvas"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Subject Distribution Chart -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3><i class="fas fa-pie-chart"></i>Subject Distribution</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="subjectChartCanvas"></canvas>
                                     </div>
                                 </div>
                             </div>
@@ -411,6 +484,18 @@
                                     <div class="loading">
                                         <i class="fas fa-spinner fa-spin"></i>
                                         Loading...
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Subject Productivity Chart -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3><i class="fas fa-chart-line"></i>Subject Productivity</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="subjectProductivityChart"></canvas>
                                     </div>
                                 </div>
                             </div>
@@ -493,30 +578,21 @@
     </div>
     
     <!-- ==========================================
-    JAVASCRIPT - Complete
+    JAVASCRIPT - Complete with Charts
     ========================================== -->
     <script>
         // ==========================================
         // NAVIGATION FUNCTION
         // ==========================================
         function navigateTo(page) {
-            // Hide all pages
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            
-            // Show selected page
             const targetPage = document.getElementById(`page-${page}`);
-            if (targetPage) {
-                targetPage.classList.add('active');
-            }
+            if (targetPage) targetPage.classList.add('active');
             
-            // Update nav items
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
-            if (navItem) {
-                navItem.classList.add('active');
-            }
+            if (navItem) navItem.classList.add('active');
             
-            // Update page title
             const titles = {
                 dashboard: 'Dashboard',
                 sessions: 'Sessions',
@@ -537,10 +613,7 @@
                 titleEl.innerHTML = `<i class="fas ${icons[page]}" style="color: var(--primary); margin-right: 12px;"></i>${titles[page]}`;
             }
             
-            // Load page content
-            if (page === 'settings') {
-                loadSettings();
-            }
+            if (page === 'settings') loadSettings();
         }
         
         // ==========================================
@@ -901,7 +974,6 @@
             const isDark = document.body.classList.contains('dark-mode');
             localStorage.setItem('darkMode', isDark);
             
-            // Update moon icon
             const moonIcon = document.querySelector('.nav-item .fa-moon, .nav-item .fa-sun');
             if (moonIcon) {
                 moonIcon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
@@ -910,7 +982,6 @@
             showToast(isDark ? '🌙 Dark mode enabled' : '☀️ Light mode enabled', 'info');
         }
         
-        // Check saved preference
         if (localStorage.getItem('darkMode') === 'true') {
             document.body.classList.add('dark-mode');
         }
@@ -1038,40 +1109,80 @@
         loadDashboard();
         
         // ==========================================
-        // WEEKLY CHART
+        // WEEKLY CHART - Chart.js
         // ==========================================
         function loadWeeklyChart() {
             fetch('/api/weekly')
                 .then(res => res.json())
                 .then(data => {
-                    const container = document.getElementById('weeklyChart');
+                    const canvas = document.getElementById('weeklyChartCanvas');
+                    if (!canvas) return;
+                    
+                    const ctx = canvas.getContext('2d');
+                    
                     if (data.success && data.data && data.data.weekly_reports) {
-                        const reports = data.data.weekly_reports.slice(-5);
-                        let bars = '';
-                        const maxScore = Math.max(...reports.map(r => r.avg_productivity), 1);
+                        const reports = data.data.weekly_reports.slice(-7);
+                        const labels = reports.map(r => r.week);
+                        const values = reports.map(r => r.avg_productivity);
+                        const colors = values.map(v => v >= 70 ? '#2ECC71' : v >= 50 ? '#F39C12' : '#E74C3C');
                         
-                        reports.forEach(r => {
-                            const height = (r.avg_productivity / maxScore) * 150;
-                            const color = r.avg_productivity >= 70 ? '#2ECC71' : r.avg_productivity >= 50 ? '#F39C12' : '#E74C3C';
-                            bars += `
-                                <div style="flex:1; text-align:center;">
-                                    <div class="chart-bar" style="height: ${height}px; background: ${color};">
-                                        <span class="tooltip">${r.avg_productivity}%</span>
-                                    </div>
-                                    <div class="chart-label">${r.week}</div>
-                                    <div style="font-size:11px; font-weight:600; color: var(--dark);">${r.avg_productivity}%</div>
-                                </div>
-                            `;
+                        // Destroy existing chart if exists
+                        if (window.weeklyChartInstance) {
+                            window.weeklyChartInstance.destroy();
+                        }
+                        
+                        window.weeklyChartInstance = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'Productivity %',
+                                    data: values,
+                                    backgroundColor: colors.map(c => c + '80'),
+                                    borderColor: colors,
+                                    borderWidth: 2,
+                                    borderRadius: 4,
+                                    barPercentage: 0.7
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        display: false
+                                    },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: function(context) {
+                                                return context.parsed.y + '%';
+                                            }
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        min: 0,
+                                        max: 100,
+                                        grid: {
+                                            color: 'rgba(0,0,0,0.05)'
+                                        },
+                                        ticks: {
+                                            callback: function(value) {
+                                                return value + '%';
+                                            }
+                                        }
+                                    },
+                                    x: {
+                                        grid: {
+                                            display: false
+                                        }
+                                    }
+                                }
+                            }
                         });
-                        
-                        container.innerHTML = `
-                            <div class="productivity-chart">${bars}</div>
-                            <div style="text-align:center;font-size:13px;color:#95A5A6;margin-top:8px;">
-                                <i class="fas fa-chart-line"></i> Productivity trend over last ${reports.length} weeks
-                            </div>
-                        `;
                     } else {
-                        container.innerHTML = `
+                        canvas.parentElement.innerHTML = `
                             <div style="text-align:center;color:#95A5A6;padding:20px 0;">
                                 <i class="fas fa-chart-bar" style="font-size:32px;display:block;margin-bottom:12px;"></i>
                                 No weekly data yet
@@ -1080,10 +1191,171 @@
                     }
                 })
                 .catch(err => {
-                    document.getElementById('weeklyChart').innerHTML = '<p style="color:#E74C3C;"><i class="fas fa-exclamation-circle"></i> Error loading chart</p>';
+                    console.error('Error loading weekly chart:', err);
                 });
         }
-        loadWeeklyChart();
+        
+        // ==========================================
+        // SUBJECT DISTRIBUTION CHART - Pie Chart
+        // ==========================================
+        function loadSubjectChart() {
+            fetch('/api/subjects')
+                .then(res => res.json())
+                .then(data => {
+                    const canvas = document.getElementById('subjectChartCanvas');
+                    if (!canvas) return;
+                    
+                    const ctx = canvas.getContext('2d');
+                    
+                    if (data.success && data.data && data.data.subjects) {
+                        const subjects = data.data.subjects.slice(0, 6);
+                        const labels = subjects.map(s => s[0]);
+                        const values = subjects.map(s => s[1].sessions);
+                        const colors = ['#6C63FF', '#2ECC71', '#F39C12', '#E74C3C', '#3498DB', '#FF6584'];
+                        
+                        // Destroy existing chart if exists
+                        if (window.subjectChartInstance) {
+                            window.subjectChartInstance.destroy();
+                        }
+                        
+                        window.subjectChartInstance = new Chart(ctx, {
+                            type: 'doughnut',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    data: values,
+                                    backgroundColor: colors.slice(0, labels.length),
+                                    borderWidth: 3,
+                                    borderColor: 'rgba(255,255,255,0.8)'
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'right',
+                                        labels: {
+                                            boxWidth: 12,
+                                            padding: 8,
+                                            font: {
+                                                size: 11,
+                                                family: 'Inter'
+                                            }
+                                        }
+                                    },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: function(context) {
+                                                return context.label + ': ' + context.parsed + ' sessions';
+                                            }
+                                        }
+                                    }
+                                },
+                                cutout: '60%'
+                            }
+                        });
+                    } else {
+                        canvas.parentElement.innerHTML = `
+                            <div style="text-align:center;color:#95A5A6;padding:20px 0;">
+                                <i class="fas fa-pie-chart" style="font-size:32px;display:block;margin-bottom:12px;"></i>
+                                No subjects yet
+                            </div>
+                        `;
+                    }
+                })
+                .catch(err => {
+                    console.error('Error loading subject chart:', err);
+                });
+        }
+        
+        // ==========================================
+        // SUBJECT PRODUCTIVITY CHART
+        // ==========================================
+        function loadSubjectProductivityChart() {
+            fetch('/api/subjects')
+                .then(res => res.json())
+                .then(data => {
+                    const canvas = document.getElementById('subjectProductivityChart');
+                    if (!canvas) return;
+                    
+                    const ctx = canvas.getContext('2d');
+                    
+                    if (data.success && data.data && data.data.subjects) {
+                        const subjects = data.data.subjects.slice(0, 6);
+                        const labels = subjects.map(s => s[0]);
+                        const values = subjects.map(s => s[1].avg_productivity);
+                        const colors = values.map(v => v >= 70 ? '#2ECC71' : v >= 50 ? '#F39C12' : '#E74C3C');
+                        
+                        // Destroy existing chart if exists
+                        if (window.subjectProductivityInstance) {
+                            window.subjectProductivityInstance.destroy();
+                        }
+                        
+                        window.subjectProductivityInstance = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'Productivity %',
+                                    data: values,
+                                    backgroundColor: colors.map(c => c + '80'),
+                                    borderColor: colors,
+                                    borderWidth: 2,
+                                    borderRadius: 4,
+                                    barPercentage: 0.7
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                indexAxis: 'y',
+                                plugins: {
+                                    legend: {
+                                        display: false
+                                    },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: function(context) {
+                                                return context.parsed.x + '%';
+                                            }
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    x: {
+                                        min: 0,
+                                        max: 100,
+                                        grid: {
+                                            color: 'rgba(0,0,0,0.05)'
+                                        },
+                                        ticks: {
+                                            callback: function(value) {
+                                                return value + '%';
+                                            }
+                                        }
+                                    },
+                                    y: {
+                                        grid: {
+                                            display: false
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    } else {
+                        canvas.parentElement.innerHTML = `
+                            <div style="text-align:center;color:#95A5A6;padding:20px 0;">
+                                <i class="fas fa-chart-line" style="font-size:32px;display:block;margin-bottom:12px;"></i>
+                                No data yet
+                            </div>
+                        `;
+                    }
+                })
+                .catch(err => {
+                    console.error('Error loading subject productivity chart:', err);
+                });
+        }
         
         // ==========================================
         // AI INSIGHT
@@ -1127,7 +1399,6 @@
                     document.getElementById('aiInsight').innerHTML = '<p style="color:#E74C3C;"><i class="fas fa-exclamation-circle"></i> Error loading insight</p>';
                 });
         }
-        loadAIInsight();
         
         // ==========================================
         // SUBJECT BREAKDOWN
@@ -1177,7 +1448,6 @@
                     document.getElementById('subjectBreakdown').innerHTML = '<p style="color:#E74C3C;"><i class="fas fa-exclamation-circle"></i> Error loading subjects</p>';
                 });
         }
-        loadSubjectBreakdown();
         
         // ==========================================
         // MODAL FUNCTIONS
@@ -1191,7 +1461,6 @@
             document.getElementById('addModal').style.display = 'none';
         }
         
-        // Add session
         document.getElementById('sessionForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -1224,6 +1493,8 @@
                     loadStats();
                     loadDashboard();
                     loadWeeklyChart();
+                    loadSubjectChart();
+                    loadSubjectProductivityChart();
                     loadAIInsight();
                     loadSubjectBreakdown();
                     showToast('Session added successfully', 'success');
@@ -1241,7 +1512,6 @@
             });
         });
         
-        // Click outside modal to close
         window.onclick = function(event) {
             const modal = document.getElementById('addModal');
             if (event.target === modal) {
@@ -1256,13 +1526,26 @@
             loadStats();
             loadDashboard();
             loadWeeklyChart();
+            loadSubjectChart();
+            loadSubjectProductivityChart();
             loadAIInsight();
             loadSubjectBreakdown();
         }, 30000);
         
+        // ==========================================
+        // INITIALIZE ALL CHARTS
+        // ==========================================
+        loadStats();
+        loadDashboard();
+        loadWeeklyChart();
+        loadSubjectChart();
+        loadSubjectProductivityChart();
+        loadAIInsight();
+        loadSubjectBreakdown();
+        
         console.log('🧠 Smart Study System Dashboard loaded!');
+        console.log('📊 Charts initialized with Chart.js');
         console.log('📚 Track your study sessions and get AI insights!');
-        console.log('⚙️ Click the Settings icon to customize your experience!');
     </script>
 </body>
 </html>
