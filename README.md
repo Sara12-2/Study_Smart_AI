@@ -8,6 +8,34 @@
 > **AI-Powered Study Tracker with Smart Analytics & Personalized Recommendations**
 
 ---
+## 📸 **Screenshots**
+
+### 🖥️ **Dashboard**
+![Dashboard](web/static/images/dashboard.jpg)
+
+### 📊 **Sessions Management**
+![Sessions](web/static/images/sessions.jpg)
+
+### 🤖 **AI Insights**
+![AI Insights](web/static/images/ai-insights.jpg)
+
+### 🌙 **Dark Mode**
+![Dark Mode](web/static/images/Dark-mode.jpg)
+
+### 📱 **Add Session**
+![Add Session](web/static/images/add-session.jpg)
+
+### 📚 **Subject Analysis**
+![Subjects](web/static/images/subjects.jpg)
+
+### ⚙️ **Settings**
+![Settings](web/static/images/settings.jpg)
+
+### 📱 **Responsive Design**
+![Responsive Design](web/static/images/responsiveness.jpg)
+
+### 🏆 **Banner**
+![Banner](web/static/images/Banner.jpg)
 
 ## 📖 **Project Overview**
 
