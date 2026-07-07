@@ -101,8 +101,6 @@ StudySmart_AI/
 │ │ └── script.js # Interactive logic
 │ ├── 📂 templates/
 │ │ ├── index.html # Main dashboard
-│ │ ├── dashboard.html # Dashboard view
-│ │ └── settings.html # Settings page
 │ ├── app.py # Flask application entry
 │ └── routes.py # API routes
 │
