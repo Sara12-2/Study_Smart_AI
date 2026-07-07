@@ -31,8 +31,12 @@
 ### ⚙️ **Settings**
 ![Settings](web/static/images/settings.jpg)
 
+### 📱 **Responsive Design**
+![Responsive Design](web/static/images/responsiveness.jpg)
+
 ### 🏆 **Banner**
 ![Banner](web/static/images/Banner.jpg)
+
 ## 📖 **Project Overview**
 
 **StudySmart AI** is an intelligent study tracking system that helps students optimize their learning habits through AI-powered analytics. It tracks study sessions, analyzes productivity patterns, and provides personalized recommendations to improve learning efficiency.
