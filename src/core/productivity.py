@@ -6,6 +6,7 @@ Enterprise-grade productivity calculations with statistical analysis
 import logging
 import csv
 import os
+import re
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class PerformanceGrade(Enum):
-    """Performance grades"""
+    """Performance grades with internationalization support"""
     A = (90, "🌟 Outstanding performance! Keep it up!")
     B = (80, "👏 Great performance! You're doing well!")
     C = (70, "📈 Good performance! Keep pushing!")
@@ -28,6 +29,27 @@ class PerformanceGrade(Enum):
     def __init__(self, threshold: int, message: str):
         self.threshold = threshold
         self.message = message
+
+
+class ProductivityWeights:
+    """Configuration constants for productivity calculations"""
+    PERFORMANCE_WEIGHT = 0.7
+    CONSISTENCY_WEIGHT = 0.3
+    PRODUCTIVITY_SCORE_WEIGHT = 0.6
+    SESSION_COUNT_WEIGHT = 0.4
+    
+    # Trend detection thresholds
+    TREND_IMPROVING_THRESHOLD = 1.05
+    TREND_DECLINING_THRESHOLD = 0.95
+    
+    # Streak thresholds
+    STREAK_ON_FIRE_THRESHOLD = 5
+    STREAK_BUILDING_THRESHOLD = 2
+    
+    # Limits
+    OPTIMAL_HOURS_LIMIT = 6
+    MAX_SESSIONS_FOR_ANALYSIS = 1000
+    CACHE_TTL_MINUTES = 5
 
 
 class ProductivityEngine:
@@ -45,39 +67,146 @@ class ProductivityEngine:
     - Data export
     """
     
-    # Configuration constants
-    CACHE_TTL_MINUTES = 5
-    TREND_IMPROVING_THRESHOLD = 1.05
-    TREND_DECLINING_THRESHOLD = 0.95
-    STREAK_ON_FIRE_THRESHOLD = 5
-    STREAK_BUILDING_THRESHOLD = 2
-    OPTIMAL_HOURS_LIMIT = 6
-    MAX_SESSIONS_FOR_ANALYSIS = 1000
-    
-    def __init__(self, storage):
-        """Initialize productivity engine"""
+    def __init__(self, storage, locale: str = 'en'):
+        """
+        Initialize productivity engine
+        
+        Args:
+            storage: Storage backend for session data
+            locale: Language locale for messages (default: 'en')
+        """
         self.storage = storage
+        self.locale = locale
         self._cache = {}
         self._cache_time = {}
-        self._cache_ttl = timedelta(minutes=self.CACHE_TTL_MINUTES)
-        logger.info("ProductivityEngine initialized")
-    
-    def _get_cached(self, key: str, func, *args, **kwargs):
-        """Get cached data or compute fresh"""
-        if key in self._cache:
-            if datetime.now() - self._cache_time[key] < self._cache_ttl:
-                return self._cache[key]
+        self._cache_ttl = timedelta(minutes=ProductivityWeights.CACHE_TTL_MINUTES)
         
-        result = func(*args, **kwargs)
-        self._cache[key] = result
-        self._cache_time[key] = datetime.now()
-        return result
+        # Initialize translations
+        self._init_translations()
+        
+        logger.info(f"ProductivityEngine initialized with locale: {locale}")
     
-    def _validate_sessions(self, sessions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Validate and filter sessions with size limit"""
-        if len(sessions) > self.MAX_SESSIONS_FOR_ANALYSIS:
-            logger.warning(f"Large dataset: {len(sessions)} sessions. Limiting to {self.MAX_SESSIONS_FOR_ANALYSIS}")
-            sessions = sessions[-self.MAX_SESSIONS_FOR_ANALYSIS:]
+    def _init_translations(self):
+        """Initialize multi-language support"""
+        self.translations = {
+            'en': {
+                'streak_on_fire': '🔥 On fire!',
+                'streak_building': '💪 Building',
+                'streak_starting': '🌱 Starting',
+                'trend_improving': '📈 Improving',
+                'trend_declining': '📉 Declining',
+                'trend_stable': '➡️ Stable',
+                'trend_neutral': 'neutral',
+                'comparison_improved': '📈 Improved',
+                'comparison_declined': '📉 Declined',
+                'comparison_stable': '➡️ Stable',
+                'recommendation': 'Your peak productivity time is {hour}:00 ({period}) with {score}% average productivity. Schedule your most important tasks during this time for optimal results!',
+                'no_data': 'No data available for recommendations. Start tracking your sessions!',
+                'time_period_morning': 'morning',
+                'time_period_afternoon': 'afternoon',
+                'time_period_evening': 'evening',
+                'time_period_night': 'night',
+                'error_no_sessions': 'No sessions found',
+                'total_sessions': 'Total Sessions',
+                'avg_productivity': 'Average Productivity',
+                'best_session': 'Best Session',
+                'worst_session': 'Worst Session',
+                'total_time': 'Total Time',
+                'subjects': 'Subjects',
+                'consistency': 'Consistency Score',
+                'grade_message': 'Grade: {grade} - {message}'
+            },
+            'es': {
+                'streak_on_fire': '🔥 ¡En llamas!',
+                'streak_building': '💪 Construyendo',
+                'streak_starting': '🌱 Comenzando',
+                'trend_improving': '📈 Mejorando',
+                'trend_declining': '📉 Declinando',
+                'trend_stable': '➡️ Estable',
+                'trend_neutral': 'neutral',
+                'comparison_improved': '📈 Mejorado',
+                'comparison_declined': '📉 Disminuido',
+                'comparison_stable': '➡️ Estable',
+                'recommendation': 'Tu hora pico de productividad es a las {hour}:00 ({period}) con un {score}% de productividad promedio. ¡Programa tus tareas más importantes durante este tiempo para obtener resultados óptimos!',
+                'no_data': 'No hay datos disponibles para recomendaciones. ¡Comienza a registrar tus sesiones!',
+                'time_period_morning': 'mañana',
+                'time_period_afternoon': 'tarde',
+                'time_period_evening': 'noche',
+                'time_period_night': 'madrugada',
+                'error_no_sessions': 'No se encontraron sesiones',
+                'total_sessions': 'Sesiones Totales',
+                'avg_productivity': 'Productividad Promedio',
+                'best_session': 'Mejor Sesión',
+                'worst_session': 'Peor Sesión',
+                'total_time': 'Tiempo Total',
+                'subjects': 'Asignaturas',
+                'consistency': 'Puntuación de Consistencia',
+                'grade_message': 'Calificación: {grade} - {message}'
+            },
+            'fr': {
+                'streak_on_fire': '🔥 En feu !',
+                'streak_building': '💪 En construction',
+                'streak_starting': '🌱 Début',
+                'trend_improving': '📈 Amélioration',
+                'trend_declining': '📉 Déclin',
+                'trend_stable': '➡️ Stable',
+                'trend_neutral': 'neutre',
+                'comparison_improved': '📈 Amélioré',
+                'comparison_declined': '📉 Diminué',
+                'comparison_stable': '➡️ Stable',
+                'recommendation': 'Votre heure de productivité maximale est {hour}:00 ({period}) avec {score}% de productivité moyenne. Planifiez vos tâches les plus importantes pendant cette période pour des résultats optimaux!',
+                'no_data': 'Aucune donnée disponible pour les recommandations. Commencez à suivre vos sessions!',
+                'time_period_morning': 'matin',
+                'time_period_afternoon': 'après-midi',
+                'time_period_evening': 'soir',
+                'time_period_night': 'nuit',
+                'error_no_sessions': 'Aucune session trouvée',
+                'total_sessions': 'Sessions Totales',
+                'avg_productivity': 'Productivité Moyenne',
+                'best_session': 'Meilleure Session',
+                'worst_session': 'Pire Session',
+                'total_time': 'Temps Total',
+                'subjects': 'Sujets',
+                'consistency': 'Score de Cohérence',
+                'grade_message': 'Note: {grade} - {message}'
+            }
+        }
+    
+    def _translate(self, key: str, **kwargs) -> str:
+        """Get translated message"""
+        translation = self.translations.get(self.locale, self.translations['en']).get(key, key)
+        if kwargs:
+            return translation.format(**kwargs)
+        return translation
+    
+    def _get_validated_sessions(self, days: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Load and validate sessions with optional time filter
+        
+        Args:
+            days: Optional number of days to filter (None for all)
+        
+        Returns:
+            List of validated sessions
+        """
+        sessions = self.storage.load_all_sessions()
+        
+        # Apply time filter if specified
+        if days is not None:
+            cutoff = datetime.now() - timedelta(days=days)
+            filtered = []
+            for s in sessions:
+                try:
+                    if datetime.fromisoformat(s.get('timestamp', '')) >= cutoff:
+                        filtered.append(s)
+                except (ValueError, TypeError):
+                    continue
+            sessions = filtered
+        
+        # Validate and limit sessions
+        if len(sessions) > ProductivityWeights.MAX_SESSIONS_FOR_ANALYSIS:
+            logger.warning(f"Large dataset: {len(sessions)} sessions. Limiting to {ProductivityWeights.MAX_SESSIONS_FOR_ANALYSIS}")
+            sessions = sessions[-ProductivityWeights.MAX_SESSIONS_FOR_ANALYSIS:]
         
         valid_sessions = []
         for s in sessions:
@@ -99,26 +228,66 @@ class ProductivityEngine:
     
     def _get_date_key(self, timestamp: str, period: str = 'day') -> str:
         """Extract date key based on period"""
-        date_obj = datetime.fromisoformat(timestamp)
-        if period == 'day':
+        try:
+            date_obj = datetime.fromisoformat(timestamp)
+            if period == 'day':
+                return date_obj.strftime('%Y-%m-%d')
+            elif period == 'week':
+                return date_obj.strftime('%Y-W%W')
+            elif period == 'month':
+                return date_obj.strftime('%Y-%m')
+            elif period == 'hour':
+                return date_obj.strftime('%Y-%m-%d %H:00')
             return date_obj.strftime('%Y-%m-%d')
-        elif period == 'week':
-            return date_obj.strftime('%Y-W%W')
-        elif period == 'month':
-            return date_obj.strftime('%Y-%m')
-        elif period == 'hour':
-            return date_obj.strftime('%Y-%m-%d %H:00')
-        return date_obj.strftime('%Y-%m-%d')
+        except (ValueError, TypeError):
+            return timestamp
+    
+    def _get_cached(self, key: str, func, *args, **kwargs):
+        """Get cached data or compute fresh"""
+        if key in self._cache:
+            if datetime.now() - self._cache_time[key] < self._cache_ttl:
+                return self._cache[key]
+        
+        result = func(*args, **kwargs)
+        self._cache[key] = result
+        self._cache_time[key] = datetime.now()
+        return result
     
     def calculate_detailed_stats(self, values: List[float]) -> Dict[str, Any]:
         """Calculate detailed statistics"""
         if not values:
-            return {}
+            return {
+                'mean': 0,
+                'median': 0,
+                'std': 0,
+                'min': 0,
+                'max': 0,
+                'range': 0,
+                'q1': 0,
+                'q3': 0,
+                'iqr': 0,
+                'skewness': 0,
+                'kurtosis': 0,
+                'count': 0
+            }
         
         clean_values = [v for v in values if not math.isnan(float(v))]
         
         if not clean_values:
-            return {}
+            return {
+                'mean': 0,
+                'median': 0,
+                'std': 0,
+                'min': 0,
+                'max': 0,
+                'range': 0,
+                'q1': 0,
+                'q3': 0,
+                'iqr': 0,
+                'skewness': 0,
+                'kurtosis': 0,
+                'count': 0
+            }
         
         return {
             'mean': round(mean(clean_values), 2),
@@ -158,29 +327,54 @@ class ProductivityEngine:
         return (sum((x - mean_val) ** 4 for x in values) / n) / (std_val ** 4) - 3
     
     def get_performance_grade(self, score: float) -> Dict[str, Any]:
-        """Get performance grade"""
+        """Get performance grade with localized message"""
         try:
             score = float(score)
             if math.isnan(score):
-                return {'grade': 'F', 'message': PerformanceGrade.F.message}
-        except:
-            return {'grade': 'F', 'message': PerformanceGrade.F.message}
+                return {
+                    'grade': 'F', 
+                    'message': PerformanceGrade.F.message,
+                    'localized_message': self._translate('grade_message', 
+                                                       grade='F', 
+                                                       message=PerformanceGrade.F.message)
+                }
+        except (ValueError, TypeError):
+            return {
+                'grade': 'F', 
+                'message': PerformanceGrade.F.message,
+                'localized_message': self._translate('grade_message', 
+                                                   grade='F', 
+                                                   message=PerformanceGrade.F.message)
+            }
         
         if score >= 90:
-            return {'grade': 'A', 'message': PerformanceGrade.A.message}
+            grade_data = PerformanceGrade.A
         elif score >= 80:
-            return {'grade': 'B', 'message': PerformanceGrade.B.message}
+            grade_data = PerformanceGrade.B
         elif score >= 70:
-            return {'grade': 'C', 'message': PerformanceGrade.C.message}
+            grade_data = PerformanceGrade.C
         elif score >= 60:
-            return {'grade': 'D', 'message': PerformanceGrade.D.message}
+            grade_data = PerformanceGrade.D
         else:
-            return {'grade': 'F', 'message': PerformanceGrade.F.message}
+            grade_data = PerformanceGrade.F
+        
+        return {
+            'grade': grade_data.name,
+            'message': grade_data.message,
+            'localized_message': self._translate('grade_message', 
+                                               grade=grade_data.name, 
+                                               message=grade_data.message)
+        }
     
     def calculate_streak(self, sessions: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate current study streak"""
         if not sessions:
-            return {'current_streak': 0, 'best_streak': 0, 'streak_status': '🌱 Starting'}
+            return {
+                'current_streak': 0, 
+                'best_streak': 0, 
+                'streak_status': self._translate('streak_starting'),
+                'total_days': 0
+            }
         
         dates = set()
         for s in sessions:
@@ -188,48 +382,48 @@ class ProductivityEngine:
                 try:
                     date = datetime.fromisoformat(s['timestamp']).date()
                     dates.add(date)
-                except:
+                except (ValueError, TypeError):
                     continue
+        
+        if not dates:
+            return {
+                'current_streak': 0, 
+                'best_streak': 0, 
+                'streak_status': self._translate('streak_starting'),
+                'total_days': 0
+            }
         
         sorted_dates = sorted(dates)
         
-        current_streak = 0
-        best_streak = 0
-        streak = 0
+        # Calculate best streak
+        best_streak = 1
+        current_streak = 1
         
-        for i, date in enumerate(sorted_dates):
-            if i == 0:
-                streak = 1
+        for i in range(1, len(sorted_dates)):
+            if (sorted_dates[i] - sorted_dates[i-1]).days == 1:
+                current_streak += 1
+                best_streak = max(best_streak, current_streak)
             else:
-                if (date - sorted_dates[i-1]).days == 1:
-                    streak += 1
-                else:
-                    if streak > best_streak:
-                        best_streak = streak
-                    streak = 1
+                current_streak = 1
         
-        if streak > best_streak:
-            best_streak = streak
+        # Calculate current streak from today backwards
+        current_streak_count = 0
+        check_date = datetime.now().date()
         
-        today = datetime.now().date()
-        if today in dates:
-            current_streak = streak
+        while check_date in dates:
+            current_streak_count += 1
+            check_date -= timedelta(days=1)
+        
+        # Determine streak status
+        if current_streak_count >= ProductivityWeights.STREAK_ON_FIRE_THRESHOLD:
+            status = self._translate('streak_on_fire')
+        elif current_streak_count >= ProductivityWeights.STREAK_BUILDING_THRESHOLD:
+            status = self._translate('streak_building')
         else:
-            yesterday = today - timedelta(days=1)
-            if yesterday in dates:
-                current_streak = streak
-            else:
-                current_streak = 0
-        
-        if current_streak >= self.STREAK_ON_FIRE_THRESHOLD:
-            status = '🔥 On fire!'
-        elif current_streak >= self.STREAK_BUILDING_THRESHOLD:
-            status = '💪 Building'
-        else:
-            status = '🌱 Starting'
+            status = self._translate('streak_starting')
         
         return {
-            'current_streak': current_streak,
+            'current_streak': current_streak_count,
             'best_streak': best_streak,
             'total_days': len(dates),
             'streak_status': status
@@ -240,7 +434,7 @@ class ProductivityEngine:
         if date is None:
             date = datetime.now().strftime('%Y-%m-%d')
         
-        cache_key = f"daily_summary_{date}"
+        cache_key = f"daily_summary_{date}_{self.locale}"
         return self._get_cached(cache_key, self._calculate_daily_summary, date)
     
     def _calculate_daily_summary(self, date: str) -> Optional[Dict[str, Any]]:
@@ -266,8 +460,11 @@ class ProductivityEngine:
         
         hour_distribution = defaultdict(int)
         for s in sessions:
-            hour = datetime.fromisoformat(s['timestamp']).hour
-            hour_distribution[hour] += 1
+            try:
+                hour = datetime.fromisoformat(s['timestamp']).hour
+                hour_distribution[hour] += 1
+            except (ValueError, TypeError):
+                continue
         
         peak_hour = max(hour_distribution.items(), key=lambda x: x[1]) if hour_distribution else None
         
@@ -305,22 +502,22 @@ class ProductivityEngine:
         }
     
     def _calculate_trend(self, values: List[float]) -> str:
-        """Calculate trend direction"""
+        """Calculate trend direction with localization"""
         if len(values) < 2:
-            return 'neutral'
+            return self._translate('trend_neutral')
         
         clean_values = [v for v in values if not math.isnan(float(v))]
         if len(clean_values) < 2:
-            return 'neutral'
+            return self._translate('trend_neutral')
         
         first_half = mean(clean_values[:len(clean_values)//2])
         second_half = mean(clean_values[len(clean_values)//2:])
         
-        if second_half > first_half * self.TREND_IMPROVING_THRESHOLD:
-            return 'improving'
-        elif second_half < first_half * self.TREND_DECLINING_THRESHOLD:
-            return 'declining'
-        return 'stable'
+        if second_half > first_half * ProductivityWeights.TREND_IMPROVING_THRESHOLD:
+            return self._translate('trend_improving')
+        elif second_half < first_half * ProductivityWeights.TREND_DECLINING_THRESHOLD:
+            return self._translate('trend_declining')
+        return self._translate('trend_stable')
     
     def _calculate_productivity_score(self, sessions: List[Dict[str, Any]]) -> int:
         """Calculate overall productivity score"""
@@ -330,21 +527,24 @@ class ProductivityEngine:
         avg_score = mean(s['productivity_score'] for s in sessions)
         consistency = min(100, max(0, len(sessions) / 10 * 10))
         
-        score = (avg_score * 0.7) + (consistency * 0.3)
+        score = (avg_score * ProductivityWeights.PERFORMANCE_WEIGHT) + (consistency * ProductivityWeights.CONSISTENCY_WEIGHT)
         return round(score)
     
     def generate_weekly_report(self) -> Dict[str, Any]:
         """Generate comprehensive weekly report"""
-        cache_key = "weekly_report"
+        cache_key = f"weekly_report_{self.locale}"
         return self._get_cached(cache_key, self._generate_weekly_report)
     
     def _generate_weekly_report(self) -> Dict[str, Any]:
         """Internal method to generate weekly report"""
-        sessions = self.storage.load_all_sessions()
-        sessions = self._validate_sessions(sessions)
+        sessions = self._get_validated_sessions()
         
         if not sessions:
-            return {'error': 'No sessions found', 'total_sessions': 0}
+            return {
+                'error': self._translate('error_no_sessions'), 
+                'total_sessions': 0,
+                'total_weeks': 0
+            }
         
         weekly_data = defaultdict(list)
         for s in sessions:
@@ -373,7 +573,7 @@ class ProductivityEngine:
         if len(reports) >= 2:
             trend = self._calculate_trend([r['avg_productivity'] for r in reports])
         else:
-            trend = 'neutral'
+            trend = self._translate('trend_neutral')
         
         best_week = max(reports, key=lambda x: x['avg_productivity']) if reports else None
         worst_week = min(reports, key=lambda x: x['avg_productivity']) if reports else None
@@ -402,11 +602,14 @@ class ProductivityEngine:
     
     def analyze_subject_performance(self) -> Dict[str, Any]:
         """Analyze performance by subject"""
-        sessions = self.storage.load_all_sessions()
-        sessions = self._validate_sessions(sessions)
+        sessions = self._get_validated_sessions()
         
         if not sessions:
-            return {'error': 'No sessions found', 'subjects': [], 'total_subjects': 0}
+            return {
+                'error': self._translate('error_no_sessions'), 
+                'subjects': [], 
+                'total_subjects': 0
+            }
         
         subject_data = defaultdict(lambda: {
             'sessions': 0,
@@ -462,30 +665,27 @@ class ProductivityEngine:
     
     def get_productivity_trends(self, days: int = 30) -> Dict[str, Any]:
         """Get productivity trends for the last N days"""
-        cache_key = f"trends_{days}"
+        cache_key = f"trends_{days}_{self.locale}"
         return self._get_cached(cache_key, self._get_productivity_trends, days)
     
     def _get_productivity_trends(self, days: int) -> Dict[str, Any]:
         """Internal method to get productivity trends"""
-        sessions = self.storage.load_all_sessions()
-        sessions = self._validate_sessions(sessions)
+        sessions = self._get_validated_sessions(days=days)
         
-        cutoff_date = datetime.now() - timedelta(days=days)
-        filtered_sessions = []
-        for s in sessions:
-            try:
-                if datetime.fromisoformat(s['timestamp']) >= cutoff_date:
-                    filtered_sessions.append(s)
-            except:
-                continue
-        
-        if not filtered_sessions:
-            return {'error': 'No sessions in range', 'total_sessions': 0}
+        if not sessions:
+            return {
+                'error': self._translate('error_no_sessions'), 
+                'total_sessions': 0,
+                'days_analyzed': 0
+            }
         
         daily_data = defaultdict(list)
-        for s in filtered_sessions:
-            day = self._get_date_key(s['timestamp'], 'day')
-            daily_data[day].append(s['productivity_score'])
+        for s in sessions:
+            try:
+                day = self._get_date_key(s['timestamp'], 'day')
+                daily_data[day].append(s['productivity_score'])
+            except (ValueError, TypeError):
+                continue
         
         daily_averages = {
             day: round(mean(scores), 2)
@@ -504,15 +704,17 @@ class ProductivityEngine:
             
             slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x ** 2) if (n * sum_x2 - sum_x ** 2) != 0 else 0
             
-            trend_direction = 'improving' if slope > 0.5 else 'declining' if slope < -0.5 else 'stable'
+            trend_direction = self._translate('trend_improving') if slope > 0.5 else \
+                            self._translate('trend_declining') if slope < -0.5 else \
+                            self._translate('trend_stable')
             slope_percentage = round(slope * 100 / (max(values) if max(values) > 0 else 1), 2)
         else:
-            trend_direction = 'insufficient_data'
+            trend_direction = self._translate('trend_neutral')
             slope_percentage = 0
         
         return {
             'days_analyzed': len(daily_averages),
-            'total_sessions': len(filtered_sessions),
+            'total_sessions': len(sessions),
             'daily_productivity': daily_averages,
             'trend_direction': trend_direction,
             'trend_slope': slope_percentage,
@@ -525,16 +727,18 @@ class ProductivityEngine:
     
     def get_optimal_study_times(self) -> Dict[str, Any]:
         """Find optimal study times based on historical data"""
-        cache_key = "optimal_times"
+        cache_key = f"optimal_times_{self.locale}"
         return self._get_cached(cache_key, self._get_optimal_study_times)
     
     def _get_optimal_study_times(self) -> Dict[str, Any]:
         """Internal method to find optimal study times"""
-        sessions = self.storage.load_all_sessions()
-        sessions = self._validate_sessions(sessions)
+        sessions = self._get_validated_sessions()
         
         if not sessions:
-            return {'error': 'No sessions found', 'total_sessions': 0}
+            return {
+                'error': self._translate('error_no_sessions'), 
+                'total_sessions': 0
+            }
         
         hour_data = defaultdict(list)
         for s in sessions:
@@ -545,7 +749,7 @@ class ProductivityEngine:
                     'duration': s['duration'],
                     'subject': s.get('subject', 'Unknown')
                 })
-            except:
+            except (ValueError, TypeError):
                 continue
         
         hour_metrics = {}
@@ -558,7 +762,8 @@ class ProductivityEngine:
                 'avg_productivity': round(avg_productivity, 2),
                 'avg_duration': round(avg_duration, 2),
                 'total_sessions': total_sessions,
-                'score': round((avg_productivity * 0.6) + (min(100, total_sessions * 10) * 0.4), 2),
+                'score': round((avg_productivity * ProductivityWeights.PRODUCTIVITY_SCORE_WEIGHT) + 
+                             (min(100, total_sessions * 10) * ProductivityWeights.SESSION_COUNT_WEIGHT), 2),
                 'grade': self.get_performance_grade(avg_productivity)
             }
         
@@ -571,7 +776,7 @@ class ProductivityEngine:
         peak_periods = []
         current_period = []
         
-        for hour, metrics in sorted_hours[:self.OPTIMAL_HOURS_LIMIT]:
+        for hour, metrics in sorted_hours[:ProductivityWeights.OPTIMAL_HOURS_LIMIT]:
             if not current_period or hour == current_period[-1][0] + 1:
                 current_period.append((hour, metrics))
             else:
@@ -604,47 +809,69 @@ class ProductivityEngine:
         }
     
     def _generate_recommendation(self, sorted_hours: List[Tuple[int, Dict]]) -> str:
-        """Generate human-readable recommendation"""
+        """Generate human-readable recommendation with localization"""
         if not sorted_hours:
-            return "No data available for recommendations. Start tracking your sessions!"
+            return self._translate('no_data')
         
         best_hour = sorted_hours[0][0]
         best_score = sorted_hours[0][1]['avg_productivity']
         
         if best_hour < 12:
-            time_period = "morning"
+            time_period = self._translate('time_period_morning')
         elif best_hour < 17:
-            time_period = "afternoon"
+            time_period = self._translate('time_period_afternoon')
         elif best_hour < 21:
-            time_period = "evening"
+            time_period = self._translate('time_period_evening')
         else:
-            time_period = "night"
+            time_period = self._translate('time_period_night')
         
-        return f"Your peak productivity time is {best_hour:02d}:00 ({time_period}) with {best_score}% average productivity. Schedule your most important tasks during this time for optimal results!"
+        return self._translate(
+            'recommendation',
+            hour=best_hour,
+            period=time_period,
+            score=best_score
+        )
     
     def export_to_csv(self, sessions: List[Dict[str, Any]], filename: str = None) -> str:
-        """Export sessions to CSV"""
+        """
+        Export sessions to CSV with sanitized filename
+        
+        Args:
+            sessions: List of session dictionaries
+            filename: Optional filename (will be sanitized)
+        
+        Returns:
+            Path to exported file
+        """
         if not sessions:
             raise ValueError("No sessions to export")
         
         if filename is None:
             filename = f"study_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        else:
+            # Sanitize filename to prevent path traversal
+            filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', filename)
+            if not filename.endswith('.csv'):
+                filename += '.csv'
         
         os.makedirs('exports', exist_ok=True)
         filepath = os.path.join('exports', filename)
         
-        with open(filepath, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=sessions[0].keys())
-            writer.writeheader()
-            writer.writerows(sessions)
-        
-        logger.info(f"Exported {len(sessions)} sessions to {filepath}")
-        return filepath
+        try:
+            with open(filepath, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=sessions[0].keys())
+                writer.writeheader()
+                writer.writerows(sessions)
+            
+            logger.info(f"Exported {len(sessions)} sessions to {filepath}")
+            return filepath
+        except Exception as e:
+            logger.error(f"Failed to export CSV: {e}")
+            raise
     
     def compare_periods(self, period1: str, period2: str, period_type: str = 'week') -> Dict[str, Any]:
-        """Compare two time periods"""
-        sessions = self.storage.load_all_sessions()
-        sessions = self._validate_sessions(sessions)
+        """Compare two time periods with localization"""
+        sessions = self._get_validated_sessions()
         
         p1_sessions = [s for s in sessions if self._get_date_key(s['timestamp'], period_type) == period1]
         p2_sessions = [s for s in sessions if self._get_date_key(s['timestamp'], period_type) == period2]
@@ -653,6 +880,13 @@ class ProductivityEngine:
         p2_avg = mean([s['productivity_score'] for s in p2_sessions]) if p2_sessions else 0
         
         improvement = ((p2_avg - p1_avg) / p1_avg * 100) if p1_avg > 0 else 0
+        
+        if improvement > 0:
+            improvement_text = self._translate('comparison_improved')
+        elif improvement < 0:
+            improvement_text = self._translate('comparison_declined')
+        else:
+            improvement_text = self._translate('comparison_stable')
         
         return {
             'period1': {
@@ -668,34 +902,63 @@ class ProductivityEngine:
                 'total_time': sum(s['duration'] for s in p2_sessions)
             },
             'improvement': round(improvement, 2),
-            'improvement_text': '📈 Improved' if improvement > 0 else '📉 Declined' if improvement < 0 else '➡️ Stable',
+            'improvement_text': improvement_text,
             'grade1': self.get_performance_grade(p1_avg),
             'grade2': self.get_performance_grade(p2_avg)
         }
     
     def get_performance_summary(self) -> Dict[str, Any]:
-        """Get a quick performance summary"""
-        sessions = self.storage.load_all_sessions()
-        sessions = self._validate_sessions(sessions)
+        """Get a quick performance summary with localization"""
+        sessions = self._get_validated_sessions()
         
         if not sessions:
-            return {'error': 'No sessions found'}
+            return {
+                'error': self._translate('error_no_sessions'),
+                'total_sessions': 0
+            }
         
         scores = [s.get('productivity_score', 0) for s in sessions if s.get('productivity_score') is not None]
         
+        if not scores:
+            return {
+                'error': self._translate('error_no_sessions'),
+                'total_sessions': len(sessions)
+            }
+        
+        avg_score = mean(scores)
+        grade = self.get_performance_grade(avg_score)
+        
         return {
             'total_sessions': len(sessions),
-            'avg_productivity': round(mean(scores), 2) if scores else 0,
-            'best_session': max(scores) if scores else 0,
-            'worst_session': min(scores) if scores else 0,
-            'grade': self.get_performance_grade(mean(scores)) if scores else {'grade': 'F', 'message': 'No data'},
+            'avg_productivity': round(avg_score, 2),
+            'best_session': max(scores),
+            'worst_session': min(scores),
+            'grade': grade,
             'streak': self.calculate_streak(sessions),
             'total_time': sum(s.get('duration', 0) for s in sessions),
-            'subjects': len(set(s.get('subject', 'Unknown') for s in sessions))
+            'subjects': len(set(s.get('subject', 'Unknown') for s in sessions)),
+            'localized_labels': {
+                'total_sessions': self._translate('total_sessions'),
+                'avg_productivity': self._translate('avg_productivity'),
+                'best_session': self._translate('best_session'),
+                'worst_session': self._translate('worst_session'),
+                'total_time': self._translate('total_time'),
+                'subjects': self._translate('subjects'),
+                'consistency': self._translate('consistency')
+            }
         }
     
     def export_to_excel(self, sessions: List[Dict[str, Any]], filename: str = None) -> Optional[str]:
-        """Export sessions to Excel"""
+        """
+        Export sessions to Excel with sanitized filename
+        
+        Args:
+            sessions: List of session dictionaries
+            filename: Optional filename (will be sanitized)
+        
+        Returns:
+            Path to exported file or None if pandas not available
+        """
         try:
             import pandas as pd
             
@@ -704,6 +967,11 @@ class ProductivityEngine:
             
             if filename is None:
                 filename = f"study_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            else:
+                # Sanitize filename
+                filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', filename)
+                if not filename.endswith('.xlsx'):
+                    filename += '.xlsx'
             
             os.makedirs('exports', exist_ok=True)
             filepath = os.path.join('exports', filename)
@@ -717,9 +985,34 @@ class ProductivityEngine:
         except ImportError:
             logger.warning("pandas or openpyxl not installed. Install with: pip install pandas openpyxl")
             return None
+        except Exception as e:
+            logger.error(f"Failed to export Excel: {e}")
+            return None
+    
+    def set_locale(self, locale: str) -> None:
+        """
+        Change the language locale
+        
+        Args:
+            locale: Language code ('en', 'es', 'fr')
+        """
+        if locale in self.translations:
+            self.locale = locale
+            self.clear_cache()  # Clear cache to refresh translations
+            logger.info(f"Locale changed to: {locale}")
+        else:
+            raise ValueError(f"Unsupported locale: {locale}. Available: {list(self.translations.keys())}")
+    
+    def get_available_locales(self) -> List[str]:
+        """Get list of available locales"""
+        return list(self.translations.keys())
     
     def clear_cache(self) -> None:
         """Clear all cached data"""
         self._cache.clear()
         self._cache_time.clear()
         logger.info("Cache cleared")
+
+    def _validate_sessions(self, sessions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Legacy method for backward compatibility"""
+        return self._get_validated_sessions()
