@@ -1,37 +1,297 @@
 // ==========================================
-// SMART STUDY SYSTEM - PREMIUM JAVASCRIPT
+// SMART STUDY SYSTEM - PREMIUM JAVASCRIPT v5.0
+// FULLY FIXED - Navigation Working + Streak Fixed
 // ==========================================
 
 // ==========================================
-// TOAST NOTIFICATIONS - Premium
+// GLOBAL STATE
 // ==========================================
-function showToast(message, type = 'success') {
+let currentPage = 'dashboard';
+let allSessions = [];
+let settings = {};
+
+// ==========================================
+// DOM READY - Initialize Everything
+// ==========================================
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 StudySmart AI Loading...');
+    
+    // Update date
+    updateDate();
+    
+    // Load dark mode preference
+    loadDarkModePreference();
+    
+    // Load all data
+    loadDashboard();
+    loadStats();
+    loadSessions();
+    loadSettingsPage();
+    
+    // Setup all event listeners
+    setupEventListeners();
+    
+    console.log('✅ StudySmart AI loaded successfully!');
+    console.log('⌨️ Keyboard shortcuts: Ctrl+N, Ctrl+1-5, Escape');
+});
+
+// ==========================================
+// SETUP EVENT LISTENERS - FIXED NAVIGATION
+// ==========================================
+function setupEventListeners() {
+    console.log('🔧 Setting up event listeners...');
+    
+    // ===== NAVIGATION - FIXED =====
+    // Method 1: Using data-page attribute
+    document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const page = this.dataset.page;
+            console.log(`🔄 Navigating to: ${page}`);
+            if (page) navigateTo(page);
+        });
+    });
+    
+    // Method 2: Direct ID based navigation (backup)
+    const navMap = {
+        'nav-dashboard': 'dashboard',
+        'nav-sessions': 'sessions',
+        'nav-subjects': 'subjects',
+        'nav-insights': 'insights',
+        'nav-settings': 'settings'
+    };
+    
+    Object.entries(navMap).forEach(([id, page]) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log(`🔄 Navigate (ID) to: ${page}`);
+                navigateTo(page);
+            });
+        }
+    });
+    
+    // ===== DARK MODE =====
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    if (darkModeToggle) {
+        darkModeToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            toggleDarkMode();
+        });
+    }
+    
+    // ===== ADD SESSION =====
+    const addBtn = document.getElementById('addSessionBtn');
+    if (addBtn) {
+        addBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            showAddModal();
+        });
+    }
+    
+    // ===== CLOSE MODAL =====
+    const closeBtn = document.getElementById('closeModalBtn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeModal);
+    }
+    
+    // ===== EXPORT =====
+    const exportBtn = document.getElementById('exportBtn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            exportData();
+        });
+    }
+    
+    // ===== REFRESH BUTTONS =====
+    const refreshWeekly = document.getElementById('refreshWeeklyBtn');
+    if (refreshWeekly) {
+        refreshWeekly.addEventListener('click', function(e) {
+            e.preventDefault();
+            loadWeeklyChart();
+        });
+    }
+    
+    const refreshTrends = document.getElementById('refreshTrendsBtn');
+    if (refreshTrends) {
+        refreshTrends.addEventListener('click', function(e) {
+            e.preventDefault();
+            loadTrends();
+        });
+    }
+    
+    const refreshSessions = document.getElementById('refreshSessionsBtn');
+    if (refreshSessions) {
+        refreshSessions.addEventListener('click', function(e) {
+            e.preventDefault();
+            loadSessions();
+        });
+    }
+    
+    const refreshSubjects = document.getElementById('refreshSubjectsBtn');
+    if (refreshSubjects) {
+        refreshSubjects.addEventListener('click', function(e) {
+            e.preventDefault();
+            loadSubjects();
+        });
+    }
+    
+    const refreshInsights = document.getElementById('refreshInsightsBtn');
+    if (refreshInsights) {
+        refreshInsights.addEventListener('click', function(e) {
+            e.preventDefault();
+            loadInsights();
+        });
+    }
+    
+    const refreshSettings = document.getElementById('refreshSettingsBtn');
+    if (refreshSettings) {
+        refreshSettings.addEventListener('click', function(e) {
+            e.preventDefault();
+            loadSettingsPage();
+        });
+    }
+    
+    // ===== FILTERS =====
+    const filterDate = document.getElementById('filterDate');
+    if (filterDate) {
+        filterDate.addEventListener('change', applyFilters);
+    }
+    
+    const filterSubject = document.getElementById('filterSubject');
+    if (filterSubject) {
+        filterSubject.addEventListener('change', applyFilters);
+    }
+    
+    const searchSessions = document.getElementById('searchSessions');
+    if (searchSessions) {
+        searchSessions.addEventListener('keyup', applyFilters);
+    }
+    
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            clearFilters();
+        });
+    }
+    
+    // ===== SESSION FORM =====
+    const sessionForm = document.getElementById('sessionForm');
+    if (sessionForm) {
+        sessionForm.addEventListener('submit', handleSessionSubmit);
+    }
+    
+    // ===== MODAL OVERLAY =====
+    const modal = document.getElementById('addModal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+    }
+    
+    console.log('✅ All event listeners setup complete');
+}
+
+// ==========================================
+// NAVIGATION - FIXED
+// ==========================================
+function navigateTo(page) {
+    console.log(`📍 Navigating to: ${page}`);
+    currentPage = page;
+    
+    // Hide all pages
+    document.querySelectorAll('.page').forEach(p => {
+        p.classList.remove('active');
+        p.style.display = 'none';
+    });
+    
+    // Show target page
+    const targetPage = document.getElementById(`page-${page}`);
+    if (targetPage) {
+        targetPage.style.display = 'block';
+        // Small delay for smooth transition
+        setTimeout(() => {
+            targetPage.classList.add('active');
+        }, 10);
+        console.log(`✅ Page ${page} displayed`);
+    } else {
+        console.error(`❌ Page ${page} not found`);
+    }
+    
+    // Update nav items
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
+    if (navItem) {
+        navItem.classList.add('active');
+        console.log(`✅ Nav item ${page} activated`);
+    }
+    
+    // Update page title
+    const titles = {
+        dashboard: 'Dashboard',
+        sessions: 'Sessions',
+        subjects: 'Subjects',
+        insights: 'AI Insights',
+        settings: 'Settings'
+    };
+    const icons = {
+        dashboard: 'fa-chart-pie',
+        sessions: 'fa-book-open',
+        subjects: 'fa-layer-group',
+        insights: 'fa-robot',
+        settings: 'fa-cog'
+    };
+    
+    const pageTitle = document.getElementById('pageTitle');
+    if (pageTitle && titles[page]) {
+        pageTitle.innerHTML = `<i class="fas ${icons[page]}"></i> ${titles[page]}`;
+    }
+    
+    closeModal();
+    
+    // Load page content
+    if (page === 'dashboard') {
+        loadDashboard();
+        loadStats();
+        loadWeeklyChart();
+        loadTrends();
+        loadStreak();
+        loadAIInsight();
+    } else if (page === 'sessions') {
+        loadSessions();
+    } else if (page === 'subjects') {
+        loadSubjects();
+    } else if (page === 'insights') {
+        loadInsights();
+    } else if (page === 'settings') {
+        loadSettingsPage();
+    }
+}
+
+// ==========================================
+// SHOW TOAST
+// ==========================================
+function showToast(message, type) {
+    type = type || 'success';
     let container = document.getElementById('toastContainer');
     if (!container) {
         container = document.createElement('div');
         container.id = 'toastContainer';
-        container.style.cssText = `
-            position: fixed;
-            top: 24px;
-            right: 24px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            max-width: 420px;
-            width: 100%;
-            pointer-events: none;
-        `;
+        container.style.cssText = 'position:fixed;top:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:420px;width:100%;pointer-events:none;';
         document.body.appendChild(container);
     }
     
     const config = {
-        success: { color: '#2ECC71', icon: 'fa-check-circle', bg: 'rgba(46,204,113,0.1)' },
-        error: { color: '#E74C3C', icon: 'fa-exclamation-circle', bg: 'rgba(231,76,60,0.1)' },
-        warning: { color: '#F39C12', icon: 'fa-exclamation-triangle', bg: 'rgba(243,156,18,0.1)' },
-        info: { color: '#3498DB', icon: 'fa-info-circle', bg: 'rgba(52,152,219,0.1)' }
+        success: { color: '#2ECC71', icon: 'fa-check-circle' },
+        error: { color: '#E74C3C', icon: 'fa-exclamation-circle' },
+        warning: { color: '#F39C12', icon: 'fa-exclamation-triangle' },
+        info: { color: '#3498DB', icon: 'fa-info-circle' }
     };
-    
     const cfg = config[type] || config.info;
     const isDark = document.body.classList.contains('dark-mode');
     
@@ -55,29 +315,16 @@ function showToast(message, type = 'success') {
         max-width: 400px;
         width: 100%;
     `;
-    
     toast.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:${cfg.bg};flex-shrink:0;">
+        <div style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:${cfg.color}22;flex-shrink:0;">
             <i class="fas ${cfg.icon}" style="color:${cfg.color};font-size:16px;"></i>
         </div>
         <span style="flex:1;font-weight:500;line-height:1.4;">${message}</span>
-        <button onclick="this.parentElement.remove()" style="background:none;border:none;color:${isDark ? '#95A5A6' : '#95A5A6'};cursor:pointer;font-size:16px;padding:4px;transition:color 0.3s;">
+        <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#95A5A6;cursor:pointer;font-size:16px;padding:4px;">
             <i class="fas fa-times"></i>
         </button>
     `;
-    
     container.appendChild(toast);
-    
-    if (!document.getElementById('toastStyles')) {
-        const style = document.createElement('style');
-        style.id = 'toastStyles';
-        style.textContent = `
-            @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-            @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
-            @keyframes confettiFall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
-        `;
-        document.head.appendChild(style);
-    }
     
     setTimeout(() => {
         toast.style.animation = 'slideOut 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -86,739 +333,1079 @@ function showToast(message, type = 'success') {
 }
 
 // ==========================================
-// DARK MODE - Fixed (No Duplicate Calls)
+// KEYBOARD SHORTCUTS
 // ==========================================
+document.addEventListener('keydown', function(e) {
+    const modal = document.getElementById('addModal');
+    const isModalOpen = modal && modal.style.display === 'flex';
+    
+    // Ctrl+N - New Session
+    if (e.ctrlKey && (e.key === 'n' || e.key === 'N')) {
+        e.preventDefault();
+        showAddModal();
+        return;
+    }
+    
+    // Ctrl+1-5 - Navigation
+    if (e.ctrlKey && e.key >= '1' && e.key <= '5') {
+        e.preventDefault();
+        const pages = ['dashboard', 'sessions', 'subjects', 'insights', 'settings'];
+        const idx = parseInt(e.key) - 1;
+        if (idx < pages.length) navigateTo(pages[idx]);
+        return;
+    }
+    
+    // Escape - Close Modal
+    if (e.key === 'Escape' || e.key === 'Esc') {
+        if (isModalOpen) {
+            e.preventDefault();
+            closeModal();
+        }
+    }
+});
+
+// ==========================================
+// DARK MODE
+// ==========================================
+function loadDarkModePreference() {
+    try {
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+            const icon = document.getElementById('darkModeIcon');
+            if (icon) icon.className = 'fas fa-sun';
+        }
+    } catch(e) {}
+}
+
 function toggleDarkMode() {
     document.body.classList.toggle('dark-mode');
     const isDark = document.body.classList.contains('dark-mode');
     localStorage.setItem('darkMode', isDark);
     
-    const moonIcon = document.querySelector('.nav-item .fa-moon, .nav-item .fa-sun');
-    if (moonIcon) {
-        moonIcon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+    const icon = document.getElementById('darkModeIcon');
+    if (icon) icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+    
+    showToast(isDark ? '🌙 Dark mode enabled' : '☀️ Light mode enabled', 'info');
+}
+
+// ==========================================
+// MODAL
+// ==========================================
+function showAddModal() {
+    const modal = document.getElementById('addModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('active');
+        document.getElementById('sessionForm').reset();
+        setTimeout(() => {
+            const input = document.getElementById('subjectInput');
+            if (input) input.focus();
+        }, 100);
+    }
+}
+
+function closeModal() {
+    const modal = document.getElementById('addModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('active');
+    }
+}
+
+// ==========================================
+// HANDLE SESSION SUBMIT
+// ==========================================
+function handleSessionSubmit(e) {
+    e.preventDefault();
+    
+    const subject = document.getElementById('subjectInput').value.trim();
+    const duration = parseInt(document.getElementById('durationInput').value);
+    const distractions = parseInt(document.getElementById('distractionsInput').value) || 0;
+    const mood = parseInt(document.getElementById('moodInput').value) || null;
+    const notes = document.getElementById('notesInput').value.trim() || null;
+    
+    if (!subject || !duration) {
+        showToast('Please fill in subject and duration', 'warning');
+        return;
     }
     
-    fetch('/api/settings', {
+    const data = { subject, duration, distractions, mood, notes };
+    
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    
+    fetch('/api/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ theme: isDark ? 'dark' : 'light' })
-    }).catch(err => console.error('Error saving theme:', err));
-    
-    showToast(isDark ? 'Dark mode enabled' : 'Light mode enabled', 'info');
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    if (localStorage.getItem('darkMode') === 'true') {
-        document.body.classList.add('dark-mode');
-        const moonIcon = document.querySelector('.nav-item .fa-moon, .nav-item .fa-sun');
-        if (moonIcon) {
-            moonIcon.className = 'fas fa-sun';
-        }
-    }
-});
-
-// ==========================================
-// EXPORT DATA - FETCH + BLOB DOWNLOAD (FIXED & ENHANCED)
-// ==========================================
-function exportData() {
-    const btn = document.getElementById('exportCSVBtn') || document.querySelector('.export-btn');
-    const originalText = btn ? btn.innerHTML : 'Export CSV';
-    
-    if (btn) {
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
-        btn.disabled = true;
-    }
-    
-    showToast('📤 Preparing export...', 'info');
-    console.log('📤 Starting CSV export...');
-    
-    fetch('/api/analytics/export/csv', {
-        method: 'GET',
-        headers: {
-            'Accept': 'text/csv, application/json'
-        }
+        body: JSON.stringify(data)
     })
-    .then(response => {
-        console.log('✅ Response status:', response.status);
-        
-        if (!response.ok) {
-            return response.text().then(text => {
-                try {
-                    const json = JSON.parse(text);
-                    throw new Error(json.error || `HTTP error! status: ${response.status}`);
-                } catch {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-            });
-        }
-        
-        const contentType = response.headers.get('content-type') || '';
-        if (contentType.includes('application/json')) {
-            return response.json().then(data => {
-                if (!data.success) {
-                    throw new Error(data.error || 'Export failed');
-                }
-                throw new Error('Unexpected JSON response');
-            });
-        }
-        
-        return response.blob();
+    .then(res => {
+        if (!res.ok) throw new Error('Network error');
+        return res.json();
     })
-    .then(blob => {
-        console.log('📦 Blob size:', blob.size, 'bytes');
-        
-        if (blob.size === 0) {
-            throw new Error('Empty file - no data to export');
-        }
-        
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.style.display = 'none';
-        
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        link.download = `study_data_${timestamp}.csv`;
-        
-        document.body.appendChild(link);
-        link.click();
-        
-        setTimeout(() => {
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
-        }, 200);
-        
-        showToast(`✅ CSV exported successfully! (${(blob.size / 1024).toFixed(1)} KB)`, 'success');
-        console.log('✅ Download complete!');
-    })
-    .catch(error => {
-        console.error('❌ Export error:', error);
-        showToast('❌ Export failed: ' + error.message, 'error');
-    })
-    .finally(() => {
-        if (btn) {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }
-    });
-}
-
-// ==========================================
-// ACHIEVEMENTS - Premium
-// ==========================================
-function checkAchievements(sessions) {
-    const achievements = [
-        { threshold: 5, message: '5 Sessions - Great Start!', icon: 'fa-star' },
-        { threshold: 10, message: '10 Sessions - Building Momentum!', icon: 'fa-rocket' },
-        { threshold: 25, message: '25 Sessions - Consistency!', icon: 'fa-shield-alt' },
-        { threshold: 50, message: '50 Sessions - On Fire!', icon: 'fa-fire' },
-        { threshold: 100, message: '100 Sessions - Master Level!', icon: 'fa-crown' },
-        { threshold: 200, message: '200 Sessions - Legendary!', icon: 'fa-gem' }
-    ];
-    
-    let unlocked = false;
-    for (const ach of achievements) {
-        if (sessions >= ach.threshold) {
-            unlocked = true;
-            showAchievement(ach.message, ach.icon);
-        }
-    }
-    
-    if (!unlocked && sessions > 0) {
-        const next = achievements.find(a => sessions < a.threshold);
-        if (next) {
-            const progress = Math.round((sessions / next.threshold) * 100);
-            console.log(`Progress to next achievement: ${progress}%`);
-        }
-    }
-}
-
-function showAchievement(message, icon = 'fa-trophy') {
-    const colors = ['#6C63FF', '#2ECC71', '#F39C12', '#FF6584', '#3498DB', '#E74C3C'];
-    for (let i = 0; i < 60; i++) {
-        const confetti = document.createElement('div');
-        const size = 6 + Math.random() * 10;
-        const color = colors[Math.floor(Math.random() * colors.length)];
-        const duration = 2 + Math.random() * 2;
-        const delay = Math.random() * 0.5;
-        confetti.style.cssText = `
-            position: fixed;
-            top: -10px;
-            left: ${Math.random() * 100}vw;
-            width: ${size}px;
-            height: ${size * 0.6}px;
-            background: ${color};
-            border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
-            animation: confettiFall ${duration}s ease-in ${delay}s forwards;
-            z-index: 9999;
-            transform: rotate(${Math.random() * 360}deg);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        `;
-        document.body.appendChild(confetti);
-        setTimeout(() => confetti.remove(), 4000);
-    }
-    
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
-    
-    const isDark = document.body.classList.contains('dark-mode');
-    const toast = document.createElement('div');
-    toast.style.cssText = `
-        background: ${isDark ? '#2d2d44' : '#ffffff'};
-        color: ${isDark ? '#e0e0e0' : '#2D3436'};
-        padding: 18px 24px;
-        border-radius: 12px;
-        box-shadow: 0 8px 32px rgba(108, 99, 255, 0.2);
-        border-left: 4px solid #6C63FF;
-        animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        font-family: 'Inter', sans-serif;
-        font-size: 15px;
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        pointer-events: auto;
-        background: ${isDark ? 'linear-gradient(135deg, #2d2d44, #3d3d54)' : 'linear-gradient(135deg, #ffffff, #f8f9fa)'};
-        border: 1px solid rgba(108, 99, 255, 0.15);
-        font-weight: 600;
-    `;
-    
-    toast.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#6C63FF,#8B83FF);flex-shrink:0;box-shadow:0 4px 12px rgba(108,99,255,0.3);">
-            <i class="fas ${icon}" style="color:white;font-size:18px;"></i>
-        </div>
-        <span style="flex:1;line-height:1.4;">${message}</span>
-        <button onclick="this.parentElement.remove()" style="background:none;border:none;color:${isDark ? '#95A5A6' : '#95A5A6'};cursor:pointer;font-size:16px;padding:4px;transition:color 0.3s;">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
-    
-    container.prepend(toast);
-    
-    setTimeout(() => {
-        toast.style.animation = 'slideOut 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-        setTimeout(() => toast.remove(), 350);
-    }, 4000);
-}
-
-// ==========================================
-// GLOBAL STATE
-// ==========================================
-let currentPage = 'dashboard';
-let allSessions = [];
-
-// ==========================================
-// KEYBOARD SHORTCUTS - FULLY FIXED ✅
-// ==========================================
-
-// Remove any existing listeners to prevent duplicates
-document.removeEventListener('keydown', window._keyboardHandler);
-window.removeEventListener('keydown', window._keyboardHandler);
-
-function keyboardHandler(e) {
-    // 🔥 Check if modal is open
-    const modal = document.getElementById('addModal');
-    const isModalOpen = modal && modal.style.display === 'block';
-    
-    // 🔥 Ctrl+N - New Session (FIXED)
-    if (e.ctrlKey && (e.key === 'n' || e.key === 'N')) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        console.log('⌨️ Ctrl+N pressed → Opening modal');
-        showAddModal();
-        return false;
-    }
-    
-    // 🔥 Ctrl+1-5 - Navigation (FIXED)
-    if (e.ctrlKey && e.key >= '1' && e.key <= '5') {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        const pages = ['dashboard', 'sessions', 'subjects', 'insights', 'settings'];
-        const idx = parseInt(e.key) - 1;
-        if (idx < pages.length) {
-            console.log(`⌨️ Ctrl+${e.key} pressed → Navigating to ${pages[idx]}`);
-            navigateTo(pages[idx]);
-        }
-        return false;
-    }
-    
-    // 🔥 Escape - Close Modal (FIXED)
-    if (e.key === 'Escape' || e.key === 'Esc') {
-        if (isModalOpen) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            console.log('⌨️ Escape pressed → Closing modal');
+    .then(data => {
+        if (data.success) {
             closeModal();
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-// Attach listener with capture phase for priority
-document.addEventListener('keydown', keyboardHandler, true);
-window.addEventListener('keydown', keyboardHandler, true);
-
-// Store reference for cleanup
-window._keyboardHandler = keyboardHandler;
-
-console.log('⌨️ Keyboard shortcuts initialized successfully!');
-console.log('  Ctrl+N → New Session');
-console.log('  Ctrl+1-5 → Navigate pages');
-console.log('  Escape → Close modal');
-
-// ==========================================
-// INITIALIZATION
-// ==========================================
-document.addEventListener('DOMContentLoaded', function() {
-    updateDate();
-    loadDashboard();
-    loadStats();
-    loadSessions();
-    
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', function(e) {
-            e.preventDefault();
-            const page = this.dataset.page;
-            if (page) {
-                navigateTo(page);
-            }
-        });
-    });
-    
-    const form = document.getElementById('sessionForm');
-    if (form) {
-        form.addEventListener('submit', addSession);
-    }
-    
-    console.log('✅ StudySmart AI initialized successfully!');
-});
-
-// ==========================================
-// NAVIGATION
-// ==========================================
-function navigateTo(page) {
-    const titles = {
-        dashboard: 'Dashboard',
-        sessions: 'Sessions',
-        subjects: 'Subjects',
-        insights: 'AI Insights',
-        settings: 'Settings'
-    };
-    const icons = {
-        dashboard: 'fa-chart-pie',
-        sessions: 'fa-book-open',
-        subjects: 'fa-layer-group',
-        insights: 'fa-robot',
-        settings: 'fa-cog'
-    };
-    
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
-    if (navItem) {
-        navItem.classList.add('active');
-    }
-    
-    document.querySelectorAll('.page').forEach(p => {
-        p.classList.remove('active');
-    });
-    const pageElement = document.getElementById(`page-${page}`);
-    if (pageElement) {
-        pageElement.classList.add('active');
-    }
-    
-    const titleElement = document.getElementById('pageTitle');
-    if (titleElement && titles[page]) {
-        titleElement.innerHTML = `
-            <i class="fas ${icons[page]}" style="color: var(--primary); margin-right: 12px;"></i>${titles[page]}
-        `;
-    }
-    
-    currentPage = page;
-    switch(page) {
-        case 'dashboard':
+            showToast('✅ Session added successfully!', 'success');
             loadDashboard();
-            loadStats();
-            break;
-        case 'sessions':
             loadSessions();
-            break;
-        case 'subjects':
             loadSubjects();
-            break;
-        case 'insights':
             loadInsights();
-            break;
-        case 'settings':
-            loadSettingsPage();
-            break;
-    }
+            loadStats();
+        } else {
+            showToast('❌ Error: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(() => showToast('❌ Error adding session', 'error'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save"></i> Save Session';
+    });
 }
 
 // ==========================================
-// SETTINGS PAGE
+// DASHBOARD
 // ==========================================
-function loadSettingsPage() {
-    const container = document.getElementById('settingsContent');
-    if (!container) return;
+function loadDashboard() {
+    const today = new Date();
+    const todayDate = document.getElementById('todayDate');
+    if (todayDate) {
+        todayDate.textContent = today.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
     
-    container.innerHTML = `
-        <div class="skeleton-wrapper">
-            <div class="skeleton-line long"></div>
-            <div class="skeleton-line medium"></div>
-            <div class="skeleton-line short"></div>
-            <div class="skeleton-line long"></div>
-            <div class="skeleton-line medium"></div>
-        </div>
-    `;
-    
-    fetch('/api/settings')
-        .then(response => response.json())
+    fetch('/api/dashboard')
+        .then(res => {
+            if (!res.ok) throw new Error('Network error');
+            return res.json();
+        })
         .then(data => {
-            if (data.success) {
-                renderSettingsForm(data.data);
+            const container = document.getElementById('todaySummary');
+            if (data.success && data.data) {
+                const d = data.data;
+                container.innerHTML = `
+                    <div class="summary-row">
+                        <span><i class="fas fa-book"></i>Sessions</span>
+                        <strong>${d.total_sessions || 0}</strong>
+                    </div>
+                    <div class="summary-row">
+                        <span><i class="fas fa-clock"></i>Total Time</span>
+                        <strong>${d.total_time || 0} min</strong>
+                    </div>
+                    <div class="summary-row">
+                        <span><i class="fas fa-rocket"></i>Avg Productivity</span>
+                        <strong style="color:${d.avg_productivity >= 70 ? '#2ECC71' : d.avg_productivity >= 50 ? '#F39C12' : '#E74C3C'}">${d.avg_productivity || 0}%</strong>
+                    </div>
+                    <div class="summary-row">
+                        <span><i class="fas fa-exclamation-triangle"></i>Distractions</span>
+                        <strong>${d.total_distractions || 0}</strong>
+                    </div>
+                    ${d.best_subject && d.best_subject.name ? `
+                        <div class="summary-row">
+                            <span><i class="fas fa-trophy"></i>Best Subject</span>
+                            <strong>${d.best_subject.name} (${d.best_subject.score}%)</strong>
+                        </div>
+                    ` : ''}
+                    ${d.peak_hour ? `
+                        <div class="summary-row">
+                            <span><i class="fas fa-clock"></i>Peak Hour</span>
+                            <strong>${String(d.peak_hour).padStart(2, '0')}:00</strong>
+                        </div>
+                    ` : ''}
+                `;
             } else {
                 container.innerHTML = `
-                    <div class="error-message">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <p>Failed to load settings: ${data.error || 'Unknown error'}</p>
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No sessions today. Start tracking!</p>
                     </div>
                 `;
             }
         })
-        .catch(error => {
-            console.error('Error loading settings:', error);
-            container.innerHTML = `
-                <div class="error-message">
+        .catch(() => {
+            document.getElementById('todaySummary').innerHTML = `
+                <div class="error-state">
                     <i class="fas fa-exclamation-circle"></i>
-                    <p>Error loading settings. Please try again.</p>
+                    <p>Error loading dashboard</p>
+                </div>
+            `;
+        });
+    
+    loadSubjectBreakdown();
+}
+
+// ==========================================
+// SUBJECT BREAKDOWN
+// ==========================================
+function loadSubjectBreakdown() {
+    fetch('/api/subjects')
+        .then(res => {
+            if (!res.ok) throw new Error('Network error');
+            return res.json();
+        })
+        .then(data => {
+            const container = document.getElementById('subjectBreakdown');
+            if (data.success && data.data && data.data.subjects) {
+                let html = '<div class="subject-grid">';
+                data.data.subjects.slice(0, 6).forEach(([subject, metrics]) => {
+                    const pct = metrics.avg_productivity || 0;
+                    const color = pct >= 70 ? '#2ECC71' : pct >= 50 ? '#F39C12' : '#E74C3C';
+                    html += `
+                        <div class="subject-card">
+                            <div class="subject-card-icon" style="background:${color}20;color:${color};">
+                                <i class="fas fa-book"></i>
+                            </div>
+                            <div class="subject-card-name">${subject}</div>
+                            <div class="subject-card-score" style="color:${color};">${pct}%</div>
+                            <div class="subject-card-stats">
+                                <span><i class="fas fa-clock"></i> ${metrics.total_time || 0} min</span>
+                                <span><i class="fas fa-layer-group"></i> ${metrics.sessions || 0}</span>
+                            </div>
+                            <div class="subject-card-progress">
+                                <div class="progress-fill" style="width:${pct}%;background:${color};"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+                
+                const bestSubject = document.getElementById('statBestSubject');
+                if (bestSubject && data.data.best_subject) {
+                    bestSubject.textContent = data.data.best_subject[0];
+                }
+            } else {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-layer-group"></i>
+                        <p>No subjects yet. Add sessions!</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(() => {
+            document.getElementById('subjectBreakdown').innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading subjects</p>
                 </div>
             `;
         });
 }
 
-function renderSettingsForm(settings) {
-    const container = document.getElementById('settingsContent');
-    if (!container) return;
-    
-    const s = settings || {
-        theme: 'light',
-        notifications: true,
-        study_reminder: true,
-        reminder_interval: 60,
-        default_subject: '',
-        daily_goal: 120,
-        weekly_goal: 600,
-        language: 'en',
-        time_format: '24h',
-        sound_effects: true,
-        auto_backup: true,
-        backup_interval: 7
-    };
-    
+// ==========================================
+// WEEKLY CHART
+// ==========================================
+function loadWeeklyChart() {
+    const container = document.getElementById('weeklyChart');
     container.innerHTML = `
-        <form id="settingsForm" onsubmit="saveSettings(event)">
-            <div class="settings-grid">
+        <div class="loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            Loading chart...
+        </div>
+    `;
+    
+    fetch('/api/weekly')
+        .then(res => {
+            if (!res.ok) throw new Error('Network error');
+            return res.json();
+        })
+        .then(data => {
+            if (data.success && data.data && data.data.weekly_reports) {
+                const reports = data.data.weekly_reports.slice(-5);
+                let bars = '';
+                const maxScore = Math.max(...reports.map(r => r.avg_productivity), 1);
+                
+                reports.forEach(r => {
+                    const height = (r.avg_productivity / maxScore) * 150;
+                    const color = r.avg_productivity >= 70 ? '#2ECC71' : r.avg_productivity >= 50 ? '#F39C12' : '#E74C3C';
+                    bars += `
+                        <div style="flex:1;text-align:center;">
+                            <div style="height:${height}px;background:${color};border-radius:6px 6px 0 0;transition:height 0.6s ease;position:relative;cursor:pointer;">
+                                <span style="position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:600;color:var(--text-primary);">${r.avg_productivity}%</span>
+                            </div>
+                            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">${r.week}</div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = `
+                    <div style="display:flex;align-items:flex-end;gap:12px;height:180px;padding:16px 0;">
+                        ${bars}
+                    </div>
+                    <div style="text-align:center;font-size:13px;color:var(--text-muted);margin-top:8px;">
+                        <i class="fas fa-chart-line"></i> Productivity trend over ${reports.length} weeks
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-chart-bar"></i>
+                        <p>No weekly data available</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(() => {
+            container.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading weekly chart</p>
+                </div>
+            `;
+        });
+}
+
+// ==========================================
+// 30-DAY TRENDS
+// ==========================================
+function loadTrends() {
+    const container = document.getElementById('trendsChart');
+    container.innerHTML = `
+        <div class="loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            Loading trends...
+        </div>
+    `;
+    
+    fetch('/api/trends')
+        .then(res => {
+            if (!res.ok) throw new Error('Network error');
+            return res.json();
+        })
+        .then(data => {
+            if (data.success && data.data && data.data.daily_productivity) {
+                const days = Object.keys(data.data.daily_productivity).slice(-30);
+                const values = Object.values(data.data.daily_productivity).slice(-30);
+                
+                if (days.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-chart-line"></i>
+                            <p>Not enough data for trends</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const maxVal = Math.max(...values, 1);
+                let bars = '';
+                days.forEach((day, i) => {
+                    const height = (values[i] / maxVal) * 140;
+                    const color = values[i] >= 70 ? '#2ECC71' : values[i] >= 50 ? '#F39C12' : '#E74C3C';
+                    bars += `
+                        <div style="flex:1;text-align:center;">
+                            <div style="height:${height}px;background:${color};border-radius:4px 4px 0 0;transition:height 0.6s ease;position:relative;cursor:pointer;">
+                                <span style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:600;color:var(--text-primary);">${values[i]}%</span>
+                            </div>
+                            <div style="font-size:8px;color:var(--text-muted);margin-top:4px;">${day.slice(5)}</div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = `
+                    <div style="display:flex;align-items:flex-end;gap:4px;height:170px;padding:16px 0;">
+                        ${bars}
+                    </div>
+                    <div style="text-align:center;font-size:13px;color:var(--text-muted);margin-top:8px;">
+                        <i class="fas fa-chart-line"></i> ${data.data.trend_direction || 'Stable'} trend (${days.length} days)
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-chart-line"></i>
+                        <p>Not enough data for trends</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(() => {
+            container.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading trends</p>
+                </div>
+            `;
+        });
+}
+
+// ==========================================
+// STREAK - FIXED VERSION
+// ==========================================
+function loadStreak() {
+    const container = document.getElementById('streakDisplay');
+    container.innerHTML = `
+        <div class="loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            Loading streak...
+        </div>
+    `;
+    
+    // First get all sessions to calculate streak properly
+    fetch('/api/sessions')
+        .then(res => {
+            if (!res.ok) throw new Error('Network error');
+            return res.json();
+        })
+        .then(data => {
+            let streak = 0;
+            let sessions = data.data || [];
+            
+            if (sessions.length > 0) {
+                // Extract unique dates
+                const dates = new Set();
+                sessions.forEach(s => {
+                    if (s.timestamp) {
+                        const date = s.timestamp.split('T')[0];
+                        dates.add(date);
+                    }
+                });
+                
+                // Calculate streak from today backwards
+                let checkDate = new Date();
+                checkDate.setHours(0, 0, 0, 0);
+                
+                while (true) {
+                    const dateStr = checkDate.toISOString().split('T')[0];
+                    if (dates.has(dateStr)) {
+                        streak++;
+                        checkDate.setDate(checkDate.getDate() - 1);
+                    } else {
+                        break;
+                    }
+                }
+            }
+            
+            // Determine status and color
+            let status, statusColor, emoji;
+            if (streak >= 5) {
+                status = 'On Fire';
+                statusColor = '#F39C12';
+                emoji = '🔥';
+            } else if (streak >= 3) {
+                status = 'Building';
+                statusColor = '#2ECC71';
+                emoji = '💪';
+            } else if (streak >= 1) {
+                status = 'Starting';
+                statusColor = '#3498DB';
+                emoji = '🌱';
+            } else {
+                status = 'No Streak';
+                statusColor = '#95A5A6';
+                emoji = '📭';
+            }
+            
+            container.innerHTML = `
+                <div style="display:flex;align-items:center;gap:16px;padding:8px 0;">
+                    <div style="width:56px;height:56px;border-radius:50%;background:${statusColor}22;display:flex;align-items:center;justify-content:center;font-size:28px;color:${statusColor};">
+                        ${emoji}
+                    </div>
+                    <div>
+                        <div style="font-size:28px;font-weight:800;color:${statusColor};">${streak} day${streak !== 1 ? 's' : ''}</div>
+                        <div style="font-size:14px;color:var(--text-muted);">${status}</div>
+                    </div>
+                </div>
+            `;
+        })
+        .catch(() => {
+            container.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading streak</p>
+                </div>
+            `;
+        });
+}
+
+// ==========================================
+// AI INSIGHT (Dashboard)
+// ==========================================
+function loadAIInsight() {
+    fetch('/api/optimal-times')
+        .then(res => {
+            if (!res.ok) throw new Error('Network error');
+            return res.json();
+        })
+        .then(data => {
+            const container = document.getElementById('aiInsight');
+            if (data.success && data.data && !data.data.error) {
+                const d = data.data;
+                container.innerHTML = `
+                    <div class="insight-box">
+                        <h4><i class="fas fa-clock"></i> Best Time to Study</h4>
+                        <p>${d.best_hour !== null ? String(d.best_hour).padStart(2, '0') + ':00' : 'N/A'}</p>
+                        <div class="sub-text">${d.best_hour_productivity || 0}% productivity</div>
+                    </div>
+                    <div style="font-size:14px;color:var(--text-secondary);padding:4px 0;">
+                        <p><i class="fas fa-lightbulb" style="color:#F39C12;margin-right:8px;"></i> ${d.recommendation || 'Keep tracking to get personalized recommendations!'}</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-robot"></i>
+                        <p>Add more sessions for AI insights</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(() => {
+            document.getElementById('aiInsight').innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-robot"></i>
+                    <p>Add more sessions for AI insights</p>
+                </div>
+            `;
+        });
+}
+
+// ==========================================
+// SESSIONS
+// ==========================================
+function loadSessions() {
+    const container = document.getElementById('sessionsList');
+    container.innerHTML = `
+        <div class="loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            Loading sessions...
+        </div>
+    `;
+    
+    fetch('/api/sessions')
+        .then(res => {
+            if (!res.ok) throw new Error('Network error');
+            return res.json();
+        })
+        .then(data => {
+            if (data.success && data.data && data.data.length > 0) {
+                allSessions = data.data;
+                renderSessions(data.data);
+                updateSubjectFilter(data.data);
+            } else {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-book-open"></i>
+                        <p>No sessions found. Start tracking!</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(() => {
+            container.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading sessions</p>
+                </div>
+            `;
+        });
+}
+
+function renderSessions(sessions) {
+    const container = document.getElementById('sessionsList');
+    let html = '';
+    sessions.slice().reverse().forEach((s, i) => {
+        const score = s.productivity_score || 0;
+        const scoreClass = score >= 70 ? 'high' : score >= 50 ? 'medium' : 'low';
+        const date = s.timestamp ? s.timestamp.substring(0, 16).replace('T', ' ') : 'Unknown';
+        const sessionId = s.id || s.session_id || i;
+        
+        html += `
+            <div class="session-item" data-id="${sessionId}">
+                <div class="session-info">
+                    <div class="session-subject">${s.subject}</div>
+                    <div class="session-meta">
+                        <i class="fas fa-clock"></i> ${s.duration}min
+                        <i class="fas fa-calendar-alt"></i> ${date}
+                        ${s.distractions ? `<i class="fas fa-exclamation-triangle"></i> ${s.distractions}` : ''}
+                        ${s.mood ? `<i class="fas fa-smile"></i> ${s.mood}/5` : ''}
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <span class="session-score ${scoreClass}">${score}%</span>
+                    <div class="session-actions">
+                        <button class="delete-session-btn" data-id="${sessionId}" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+    
+    // Attach delete events
+    document.querySelectorAll('.delete-session-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            deleteSession(id);
+        });
+    });
+}
+
+function updateSubjectFilter(sessions) {
+    const select = document.getElementById('filterSubject');
+    if (!select) return;
+    const current = select.value;
+    const subjects = [...new Set(sessions.map(s => s.subject))];
+    select.innerHTML = '<option value="">All Subjects</option>';
+    subjects.forEach(s => {
+        select.innerHTML += `<option value="${s}">${s}</option>`;
+    });
+    select.value = current;
+}
+
+function applyFilters() {
+    const date = document.getElementById('filterDate').value;
+    const subject = document.getElementById('filterSubject').value;
+    const search = document.getElementById('searchSessions').value.toLowerCase();
+    
+    let filtered = [...allSessions];
+    if (date) filtered = filtered.filter(s => s.timestamp && s.timestamp.startsWith(date));
+    if (subject) filtered = filtered.filter(s => s.subject === subject);
+    if (search) filtered = filtered.filter(s => 
+        s.subject.toLowerCase().includes(search) || 
+        (s.notes && s.notes.toLowerCase().includes(search))
+    );
+    renderSessions(filtered);
+}
+
+function clearFilters() {
+    document.getElementById('filterDate').value = '';
+    document.getElementById('filterSubject').value = '';
+    document.getElementById('searchSessions').value = '';
+    renderSessions(allSessions);
+    showToast('Filters cleared', 'info');
+}
+
+function deleteSession(id) {
+    if (!confirm('Delete this session?')) return;
+    
+    fetch(`/api/sessions/${id}`, { method: 'DELETE' })
+        .then(res => {
+            if (!res.ok) throw new Error('Network error');
+            return res.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showToast('Session deleted', 'warning');
+                loadSessions();
+                loadDashboard();
+                loadSubjects();
+                loadInsights();
+                loadStats();
+            } else {
+                showToast('Error deleting session', 'error');
+            }
+        })
+        .catch(() => showToast('Error deleting session', 'error'));
+}
+
+// ==========================================
+// SUBJECTS (Page)
+// ==========================================
+function loadSubjects() {
+    const container = document.getElementById('subjectAnalysis');
+    container.innerHTML = `
+        <div class="loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            Loading subjects...
+        </div>
+    `;
+    
+    fetch('/api/subjects')
+        .then(res => {
+            if (!res.ok) throw new Error('Network error');
+            return res.json();
+        })
+        .then(data => {
+            if (data.success && data.data && data.data.subjects) {
+                let html = '';
+                data.data.subjects.forEach(([subject, metrics]) => {
+                    const pct = metrics.avg_productivity || 0;
+                    const color = pct >= 70 ? '#2ECC71' : pct >= 50 ? '#F39C12' : '#E74C3C';
+                    html += `
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                            <div>
+                                <div style="font-weight:600;color:var(--text-primary);">${subject}</div>
+                                <div style="font-size:12px;color:var(--text-muted);">
+                                    <i class="fas fa-clock"></i> ${metrics.total_time || 0} min
+                                    <i class="fas fa-layer-group" style="margin-left:12px;"></i> ${metrics.sessions || 0} sessions
+                                </div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-size:24px;font-weight:800;color:${color};">${pct}%</div>
+                                <div style="font-size:11px;color:var(--text-muted);">
+                                    <i class="fas fa-exclamation-triangle"></i> ${metrics.avg_distractions || 0} distractions
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-layer-group"></i>
+                        <p>No subjects yet. Add sessions!</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(() => {
+            container.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading subjects</p>
+                </div>
+            `;
+        });
+}
+
+// ==========================================
+// AI INSIGHTS (Page)
+// ==========================================
+function loadInsights() {
+    const container = document.getElementById('aiInsights');
+    container.innerHTML = `
+        <div class="loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            Loading insights...
+        </div>
+    `;
+    
+    fetch('/api/insights')
+        .then(res => {
+            if (!res.ok) throw new Error('Network error');
+            return res.json();
+        })
+        .then(data => {
+            if (data.success && data.data) {
+                const insights = data.data;
+                let html = '';
+                
+                if (insights.analysis && insights.analysis.overall_stats) {
+                    const stats = insights.analysis.overall_stats;
+                    html += `
+                        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">
+                            <div style="background:var(--bg);padding:12px;border-radius:8px;text-align:center;">
+                                <div style="font-size:11px;color:var(--text-muted);">Mean</div>
+                                <div style="font-size:20px;font-weight:800;color:var(--text-primary);">${stats.mean || 0}%</div>
+                            </div>
+                            <div style="background:var(--bg);padding:12px;border-radius:8px;text-align:center;">
+                                <div style="font-size:11px;color:var(--text-muted);">Median</div>
+                                <div style="font-size:20px;font-weight:800;color:var(--text-primary);">${stats.median || 0}%</div>
+                            </div>
+                            <div style="background:var(--bg);padding:12px;border-radius:8px;text-align:center;">
+                                <div style="font-size:11px;color:var(--text-muted);">Consistency</div>
+                                <div style="font-size:20px;font-weight:800;color:var(--text-primary);">${insights.analysis.consistency || 0}%</div>
+                            </div>
+                            <div style="background:var(--bg);padding:12px;border-radius:8px;text-align:center;">
+                                <div style="font-size:11px;color:var(--text-muted);">Sessions</div>
+                                <div style="font-size:20px;font-weight:800;color:var(--text-primary);">${insights.total_sessions || 0}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                if (insights.recommendations && insights.recommendations.length > 0) {
+                    html += `
+                        <div style="background:var(--bg);padding:16px 20px;border-radius:12px;border-left:4px solid var(--primary);">
+                            <div style="font-weight:600;color:var(--text-primary);margin-bottom:8px;"><i class="fas fa-lightbulb" style="color:#F39C12;margin-right:8px;"></i>Recommendations</div>
+                            <ul style="list-style:none;padding:0;margin:0;">
+                    `;
+                    insights.recommendations.forEach(rec => {
+                        html += `<li style="padding:4px 0;color:var(--text-secondary);font-size:14px;"><i class="fas fa-arrow-right" style="color:var(--primary);margin-right:8px;"></i>${rec}</li>`;
+                    });
+                    html += `
+                            </ul>
+                        </div>
+                    `;
+                }
+                
+                if (!html) {
+                    html = `
+                        <div class="empty-state">
+                            <i class="fas fa-robot"></i>
+                            <p>Add more sessions for AI insights</p>
+                        </div>
+                    `;
+                }
+                
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-robot"></i>
+                        <p>Add more sessions for AI insights</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(() => {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-robot"></i>
+                    <p>Add more sessions for AI insights</p>
+                </div>
+            `;
+        });
+}
+
+// ==========================================
+// SETTINGS
+// ==========================================
+function loadSettingsPage() {
+    const container = document.getElementById('settingsContent');
+    container.innerHTML = `
+        <div class="loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            Loading settings...
+        </div>
+    `;
+    
+    fetch('/api/settings')
+        .then(res => {
+            if (!res.ok) throw new Error('Network error');
+            return res.json();
+        })
+        .then(data => {
+            if (data.success) {
+                settings = { ...settings, ...data.data };
+                renderSettingsForm(settings);
+            } else {
+                renderSettingsForm(settings);
+            }
+        })
+        .catch(() => renderSettingsForm(settings));
+}
+
+function renderSettingsForm(s) {
+    const container = document.getElementById('settingsContent');
+    container.innerHTML = `
+        <form id="settingsForm">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:16px;">
                 <div class="settings-group">
-                    <label>Theme</label>
-                    <select id="settingTheme" class="settings-input">
-                        <option value="light" ${s.theme === 'light' ? 'selected' : ''}><i class="fas fa-sun"></i> Light</option>
-                        <option value="dark" ${s.theme === 'dark' ? 'selected' : ''}><i class="fas fa-moon"></i> Dark</option>
-                        <option value="auto" ${s.theme === 'auto' ? 'selected' : ''}><i class="fas fa-sync-alt"></i> Auto</option>
-                    </select>
+                    <label><i class="fas fa-calendar-day"></i> Daily Goal (min)</label>
+                    <input type="number" id="settingDailyGoal" class="settings-input" value="${s.daily_goal || 120}" min="30" max="480">
                 </div>
                 <div class="settings-group">
-                    <label>Language</label>
-                    <select id="settingLanguage" class="settings-input">
-                        <option value="en" ${s.language === 'en' ? 'selected' : ''}><i class="fas fa-flag"></i> English</option>
-                        <option value="ur" ${s.language === 'ur' ? 'selected' : ''}><i class="fas fa-flag"></i> Urdu</option>
-                        <option value="hi" ${s.language === 'hi' ? 'selected' : ''}><i class="fas fa-flag"></i> Hindi</option>
-                    </select>
+                    <label><i class="fas fa-calendar-week"></i> Weekly Goal (min)</label>
+                    <input type="number" id="settingWeeklyGoal" class="settings-input" value="${s.weekly_goal || 600}" min="120" max="1680">
                 </div>
                 <div class="settings-group">
-                    <label>Time Format</label>
+                    <label><i class="fas fa-book"></i> Default Subject</label>
+                    <input type="text" id="settingDefaultSubject" class="settings-input" value="${s.default_subject || ''}" placeholder="e.g., Python">
+                </div>
+                <div class="settings-group">
+                    <label><i class="fas fa-clock"></i> Time Format</label>
                     <select id="settingTimeFormat" class="settings-input">
-                        <option value="12h" ${s.time_format === '12h' ? 'selected' : ''}><i class="fas fa-clock"></i> 12-hour (AM/PM)</option>
-                        <option value="24h" ${s.time_format === '24h' ? 'selected' : ''}><i class="fas fa-clock"></i> 24-hour</option>
+                        <option value="12h" ${s.time_format === '12h' ? 'selected' : ''}>12-hour (AM/PM)</option>
+                        <option value="24h" ${s.time_format === '24h' ? 'selected' : ''}>24-hour</option>
                     </select>
                 </div>
                 <div class="settings-group">
-                    <label>Daily Goal (minutes)</label>
-                    <input type="number" id="settingDailyGoal" class="settings-input" 
-                           value="${s.daily_goal}" min="30" max="480">
-                    <span class="help-text"><i class="fas fa-info-circle"></i> Recommended: 120 min</span>
+                    <label><i class="fas fa-bell"></i> Reminder (min)</label>
+                    <input type="number" id="settingReminderInterval" class="settings-input" value="${s.reminder_interval || 60}" min="15" max="180">
                 </div>
                 <div class="settings-group">
-                    <label>Weekly Goal (minutes)</label>
-                    <input type="number" id="settingWeeklyGoal" class="settings-input" 
-                           value="${s.weekly_goal}" min="120" max="1680">
-                    <span class="help-text"><i class="fas fa-info-circle"></i> Recommended: 600 min</span>
-                </div>
-                <div class="settings-group">
-                    <label>Default Subject</label>
-                    <input type="text" id="settingDefaultSubject" class="settings-input" 
-                           value="${s.default_subject || ''}" placeholder="e.g., Python">
-                </div>
-                <div class="settings-group">
-                    <label>Reminder Interval (minutes)</label>
-                    <input type="number" id="settingReminderInterval" class="settings-input" 
-                           value="${s.reminder_interval}" min="15" max="180">
-                </div>
-                <div class="settings-group">
-                    <label>Auto Backup (days)</label>
-                    <input type="number" id="settingBackupInterval" class="settings-input" 
-                           value="${s.backup_interval || 7}" min="1" max="30">
+                    <label><i class="fas fa-database"></i> Backup (days)</label>
+                    <input type="number" id="settingBackupInterval" class="settings-input" value="${s.backup_interval || 7}" min="1" max="30">
                 </div>
             </div>
             
-            <div class="settings-toggles">
-                <div class="toggle-group">
-                    <label class="toggle-label">
-                        <span><i class="fas fa-bell"></i> Notifications</span>
-                        <div class="toggle-switch ${s.notifications ? 'active' : ''}" onclick="toggleSwitch(this)">
-                            <input type="hidden" id="settingNotifications" value="${s.notifications}">
-                            <span class="toggle-slider"></span>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+                ${['notifications', 'study_reminder', 'auto_backup'].map(f => {
+                    const labels = {
+                        notifications: '<i class="fas fa-bell"></i> Notifications',
+                        study_reminder: '<i class="fas fa-clock"></i> Study Reminder',
+                        auto_backup: '<i class="fas fa-database"></i> Auto Backup'
+                    };
+                    const val = s[f] !== undefined ? s[f] : true;
+                    const id = 'setting' + f.charAt(0).toUpperCase() + f.slice(1);
+                    return `
+                        <div class="toggle-group">
+                            <label class="toggle-label">
+                                <span>${labels[f]}</span>
+                                <div class="toggle-switch ${val ? 'active' : ''}" onclick="toggleSwitch(this)">
+                                    <input type="hidden" id="${id}" value="${val}">
+                                    <span class="toggle-slider"></span>
+                                </div>
+                            </label>
                         </div>
-                    </label>
-                </div>
-                <div class="toggle-group">
-                    <label class="toggle-label">
-                        <span><i class="fas fa-clock"></i> Study Reminder</span>
-                        <div class="toggle-switch ${s.study_reminder ? 'active' : ''}" onclick="toggleSwitch(this)">
-                            <input type="hidden" id="settingStudyReminder" value="${s.study_reminder}">
-                            <span class="toggle-slider"></span>
-                        </div>
-                    </label>
-                </div>
-                <div class="toggle-group">
-                    <label class="toggle-label">
-                        <span><i class="fas fa-volume-up"></i> Sound Effects</span>
-                        <div class="toggle-switch ${s.sound_effects ? 'active' : ''}" onclick="toggleSwitch(this)">
-                            <input type="hidden" id="settingSoundEffects" value="${s.sound_effects}">
-                            <span class="toggle-slider"></span>
-                        </div>
-                    </label>
-                </div>
-                <div class="toggle-group">
-                    <label class="toggle-label">
-                        <span><i class="fas fa-database"></i> Auto Backup</span>
-                        <div class="toggle-switch ${s.auto_backup ? 'active' : ''}" onclick="toggleSwitch(this)">
-                            <input type="hidden" id="settingAutoBackup" value="${s.auto_backup}">
-                            <span class="toggle-slider"></span>
-                        </div>
-                    </label>
-                </div>
+                    `;
+                }).join('')}
             </div>
             
             <div class="settings-actions">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Save Settings
-                </button>
-                <button type="button" class="btn btn-secondary" onclick="resetSettings()">
-                    <i class="fas fa-undo"></i> Reset to Default
-                </button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Settings</button>
+                <button type="button" class="btn btn-secondary" onclick="resetSettings()"><i class="fas fa-undo"></i> Reset</button>
+                <button type="button" class="btn btn-danger" onclick="clearAllData()"><i class="fas fa-trash"></i> Clear Data</button>
             </div>
             
-            <div id="settingsMessage" class="settings-message"></div>
+            <div id="settingsMessage"></div>
         </form>
     `;
-}
-
-// ==========================================
-// TOGGLE SWITCH
-// ==========================================
-function toggleSwitch(element) {
-    element.classList.toggle('active');
-    const hiddenInput = element.querySelector('input[type="hidden"]');
-    if (hiddenInput) {
-        hiddenInput.value = element.classList.contains('active');
+    
+    // Attach settings form submit
+    const settingsForm = document.getElementById('settingsForm');
+    if (settingsForm) {
+        settingsForm.addEventListener('submit', saveSettings);
     }
 }
 
-// ==========================================
-// SAVE SETTINGS
-// ==========================================
+function toggleSwitch(element) {
+    element.classList.toggle('active');
+    const hiddenInput = element.querySelector('input[type="hidden"]');
+    if (hiddenInput) hiddenInput.value = element.classList.contains('active');
+}
+
 function saveSettings(event) {
     event.preventDefault();
-    
-    const settings = {
-        theme: document.getElementById('settingTheme')?.value || 'light',
-        language: document.getElementById('settingLanguage')?.value || 'en',
-        time_format: document.getElementById('settingTimeFormat')?.value || '24h',
-        daily_goal: parseInt(document.getElementById('settingDailyGoal')?.value) || 120,
-        weekly_goal: parseInt(document.getElementById('settingWeeklyGoal')?.value) || 600,
-        default_subject: document.getElementById('settingDefaultSubject')?.value || '',
-        reminder_interval: parseInt(document.getElementById('settingReminderInterval')?.value) || 60,
-        backup_interval: parseInt(document.getElementById('settingBackupInterval')?.value) || 7,
-        notifications: document.getElementById('settingNotifications')?.value === 'true',
-        study_reminder: document.getElementById('settingStudyReminder')?.value === 'true',
-        sound_effects: document.getElementById('settingSoundEffects')?.value === 'true',
-        auto_backup: document.getElementById('settingAutoBackup')?.value === 'true'
+    const newSettings = {
+        daily_goal: parseInt(document.getElementById('settingDailyGoal').value) || 120,
+        weekly_goal: parseInt(document.getElementById('settingWeeklyGoal').value) || 600,
+        default_subject: document.getElementById('settingDefaultSubject').value || '',
+        time_format: document.getElementById('settingTimeFormat').value || '24h',
+        reminder_interval: parseInt(document.getElementById('settingReminderInterval').value) || 60,
+        backup_interval: parseInt(document.getElementById('settingBackupInterval').value) || 7,
+        notifications: document.getElementById('settingNotifications').value === 'true',
+        study_reminder: document.getElementById('settingStudyReminder').value === 'true',
+        auto_backup: document.getElementById('settingAutoBackup').value === 'true'
     };
+    settings = { ...settings, ...newSettings };
     
     const messageEl = document.getElementById('settingsMessage');
-    
-    messageEl.innerHTML = `
-        <div class="info-message">
-            <i class="fas fa-spinner fa-spin"></i> Saving settings...
-        </div>
-    `;
+    messageEl.innerHTML = `<div class="info-message"><i class="fas fa-spinner fa-spin"></i> Saving...</div>`;
     
     fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
     })
-    .then(response => response.json())
+    .then(res => {
+        if (!res.ok) throw new Error('Network error');
+        return res.json();
+    })
     .then(data => {
         if (data.success) {
-            messageEl.innerHTML = `
-                <div class="success-message">
-                    <i class="fas fa-check-circle"></i> Settings saved successfully!
-                </div>
-            `;
-            applyTheme(settings.theme);
-            const isDark = settings.theme === 'dark';
-            const moonIcon = document.querySelector('.nav-item .fa-moon, .nav-item .fa-sun');
-            if (moonIcon) {
-                moonIcon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
-            }
-            showToast('Settings saved successfully!', 'success');
+            messageEl.innerHTML = `<div class="success-message"><i class="fas fa-check-circle"></i> Settings saved!</div>`;
+            showToast('✅ Settings saved successfully', 'success');
             setTimeout(() => messageEl.innerHTML = '', 3000);
         } else {
-            messageEl.innerHTML = `
-                <div class="error-message">
-                    <i class="fas fa-exclamation-circle"></i> ${data.error || 'Failed to save settings'}
-                </div>
-            `;
+            messageEl.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-circle"></i> ${data.error || 'Failed to save'}</div>`;
         }
     })
-    .catch(error => {
-        console.error('Error saving settings:', error);
-        messageEl.innerHTML = `
-            <div class="error-message">
-                <i class="fas fa-exclamation-circle"></i> Error saving settings
-            </div>
-        `;
+    .catch(() => {
+        messageEl.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-circle"></i> Error saving settings</div>`;
     });
 }
 
-// ==========================================
-// RESET SETTINGS
-// ==========================================
 function resetSettings() {
-    if (!confirm('Are you sure you want to reset all settings to default?')) {
-        return;
-    }
+    if (!confirm('Reset all settings to default?')) return;
+    const defaultSettings = {
+        daily_goal: 120, weekly_goal: 600, default_subject: '',
+        time_format: '24h', reminder_interval: 60, backup_interval: 7,
+        notifications: true, study_reminder: true, auto_backup: true
+    };
+    settings = { ...settings, ...defaultSettings };
     
-    const messageEl = document.getElementById('settingsMessage');
-    
-    messageEl.innerHTML = `
-        <div class="info-message">
-            <i class="fas fa-spinner fa-spin"></i> Resetting settings...
-        </div>
-    `;
-    
-    fetch('/api/settings/reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            messageEl.innerHTML = `
-                <div class="success-message">
-                    <i class="fas fa-check-circle"></i> Settings reset to default!
-                </div>
-            `;
-            loadSettingsPage();
+    fetch('/api/settings/reset', { method: 'POST' })
+        .then(() => {
             showToast('Settings reset to default', 'info');
-        } else {
-            messageEl.innerHTML = `
-                <div class="error-message">
-                    <i class="fas fa-exclamation-circle"></i> ${data.error || 'Failed to reset settings'}
-                </div>
-            `;
-        }
-        setTimeout(() => messageEl.innerHTML = '', 3000);
-    })
-    .catch(error => {
-        console.error('Error resetting settings:', error);
-        messageEl.innerHTML = `
-            <div class="error-message">
-                <i class="fas fa-exclamation-circle"></i> Error resetting settings
-            </div>
-        `;
-    });
+            loadSettingsPage();
+        })
+        .catch(() => loadSettingsPage());
 }
 
-// ==========================================
-// APPLY THEME
-// ==========================================
-function applyTheme(theme) {
-    if (theme === 'dark') {
-        document.body.classList.add('dark-mode');
-        localStorage.setItem('darkMode', 'true');
-    } else if (theme === 'auto') {
-        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        if (isDark) {
-            document.body.classList.add('dark-mode');
-            localStorage.setItem('darkMode', 'true');
-        } else {
-            document.body.classList.remove('dark-mode');
-            localStorage.setItem('darkMode', 'false');
-        }
-    } else {
-        document.body.classList.remove('dark-mode');
-        localStorage.setItem('darkMode', 'false');
-    }
-}
-
-// ==========================================
-// NAVIGATE TO SETTINGS (Helper)
-// ==========================================
-function navigateToSettings(event) {
-    if (event) event.preventDefault();
-    navigateTo('settings');
-}
-
-// ==========================================
-// DATE
-// ==========================================
-function updateDate() {
-    const now = new Date();
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+function clearAllData() {
+    if (!confirm('WARNING: Delete ALL sessions? This cannot be undone!')) return;
+    if (!confirm('Are you absolutely sure?')) return;
     
-    document.querySelectorAll('#currentDate, .date-display').forEach(el => {
-        if (el) {
-            el.innerHTML = `<i class="far fa-calendar-alt"></i> ${now.toLocaleDateString('en-US', options)}`;
-        }
-    });
-    
-    const todayDate = document.getElementById('todayDate');
-    if (todayDate) {
-        todayDate.textContent = now.toLocaleDateString('en-US', options);
-    }
+    fetch('/api/clear?confirm=true', { method: 'DELETE' })
+        .then(res => {
+            if (!res.ok) throw new Error('Network error');
+            return res.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showToast('All data cleared', 'warning');
+                loadDashboard();
+                loadSessions();
+                loadSubjects();
+                loadInsights();
+                loadStats();
+            }
+        })
+        .catch(() => showToast('Error clearing data', 'error'));
 }
 
 // ==========================================
-// STATS
+// EXPORT DATA
+// ==========================================
+function exportData() {
+    const btn = document.getElementById('exportBtn');
+    const originalText = btn ? btn.innerHTML : 'Export';
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+        btn.disabled = true;
+    }
+    
+    showToast('Preparing export...', 'info');
+    
+    fetch('/api/analytics/export/csv')
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw new Error(err.error || 'Export failed'); });
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            if (blob.size === 0) throw new Error('No data to export');
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `study_data_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            showToast('✅ Data exported successfully!', 'success');
+        })
+        .catch(error => {
+            showToast('❌ Export failed: ' + error.message, 'error');
+        })
+        .finally(() => {
+            if (btn) {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+}
+
+// ==========================================
+// LOAD STATS
 // ==========================================
 function loadStats() {
     fetch('/api/stats')
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) throw new Error('Network error');
+            return res.json();
+        })
         .then(data => {
             if (data.success) {
                 const sessions = data.data.total_sessions || 0;
                 
                 const statElements = {
                     'statSessions': sessions,
-                    'statTime': `${data.data.total_time || 0} min`,
-                    'statProductivity': `${data.data.avg_productivity || 0}%`,
+                    'statTime': (data.data.total_time || 0) + ' min',
+                    'statProductivity': (data.data.avg_productivity || 0) + '%',
                     'totalSessions': sessions,
                     'sessionBadge': sessions
                 };
@@ -834,757 +1421,19 @@ function loadStats() {
                         }, 200);
                     }
                 });
-                
-                checkAchievements(sessions);
             }
         })
-        .catch(err => console.error('Error loading stats:', err));
+        .catch(() => {});
 }
 
 // ==========================================
-// DASHBOARD
+// DATE
 // ==========================================
-function loadDashboard() {
-    fetch('/api/dashboard')
-        .then(res => res.json())
-        .then(data => {
-            const container = document.getElementById('todaySummary');
-            if (!container) return;
-            
-            if (data.success && data.data) {
-                const d = data.data;
-                container.innerHTML = `
-                    <div class="summary-row">
-                        <span><i class="fas fa-book" style="color:var(--primary);"></i>Sessions</span>
-                        <strong>${d.total_sessions}</strong>
-                    </div>
-                    <div class="summary-row">
-                        <span><i class="fas fa-clock" style="color:#2ECC71;"></i>Total Time</span>
-                        <strong>${d.total_time} min</strong>
-                    </div>
-                    <div class="summary-row">
-                        <span><i class="fas fa-rocket" style="color:#F39C12;"></i>Avg Productivity</span>
-                        <strong style="color: ${d.avg_productivity >= 70 ? '#2ECC71' : d.avg_productivity >= 50 ? '#F39C12' : '#E74C3C'}">
-                            ${d.avg_productivity}%
-                        </strong>
-                    </div>
-                    <div class="summary-row">
-                        <span><i class="fas fa-exclamation-triangle" style="color:#E74C3C;"></i>Distractions</span>
-                        <strong>${d.total_distractions}</strong>
-                    </div>
-                    ${d.best_subject && d.best_subject.name ? `
-                        <div class="summary-row">
-                            <span><i class="fas fa-trophy" style="color:#F39C12;"></i>Best Subject</span>
-                            <strong>${d.best_subject.name} (${d.best_subject.score}%)</strong>
-                        </div>
-                    ` : ''}
-                    ${d.peak_hour ? `
-                        <div class="summary-row">
-                            <span><i class="fas fa-clock" style="color:var(--primary);"></i>Peak Hour</span>
-                            <strong>${String(d.peak_hour).padStart(2, '0')}:00</strong>
-                        </div>
-                    ` : ''}
-                `;
-            } else {
-                container.innerHTML = `
-                    <div style="text-align:center;color:#95A5A6;padding:30px 0;">
-                        <i class="fas fa-inbox" style="font-size:40px;display:block;margin-bottom:12px;color:var(--primary);"></i>
-                        <p>No sessions today</p>
-                        <p style="font-size:13px;margin-top:4px;">Start tracking your study sessions</p>
-                    </div>
-                `;
-            }
-        })
-        .catch(err => {
-            document.getElementById('todaySummary').innerHTML = `
-                <p style="color:#E74C3C;text-align:center;">
-                    <i class="fas fa-exclamation-circle"></i> Error loading dashboard
-                </p>
-            `;
-        });
-    
-    loadSubjectBreakdown();
-}
-
-// ==========================================
-// SUBJECT BREAKDOWN - Premium Card Style
-// ==========================================
-function loadSubjectBreakdown() {
-    fetch('/api/subjects')
-        .then(res => res.json())
-        .then(data => {
-            const container = document.getElementById('subjectBreakdown');
-            if (!container) return;
-            
-            if (data.success && data.data && data.data.subjects) {
-                let html = '<div class="subject-grid">';
-                
-                data.data.subjects.slice(0, 6).forEach(([subject, metrics]) => {
-                    const pct = metrics.avg_productivity;
-                    const color = pct >= 70 ? '#2ECC71' : pct >= 50 ? '#F39C12' : '#E74C3C';
-                    const icon = subject.toLowerCase().includes('python') ? 'fa-python' :
-                                subject.toLowerCase().includes('java') ? 'fa-java' :
-                                subject.toLowerCase().includes('javascript') ? 'fa-js' :
-                                subject.toLowerCase().includes('sql') ? 'fa-database' :
-                                subject.toLowerCase().includes('ai') || subject.toLowerCase().includes('machine') ? 'fa-robot' :
-                                'fa-book';
-                    
-                    html += `
-                        <div class="subject-card">
-                            <div class="subject-card-icon" style="background:${color}20; color:${color};">
-                                <i class="fab ${icon}"></i>
-                            </div>
-                            <div class="subject-card-name">${subject}</div>
-                            <div class="subject-card-score" style="color:${color};">${pct}%</div>
-                            <div class="subject-card-stats">
-                                <span><i class="fas fa-clock"></i> ${metrics.total_time} min</span>
-                                <span><i class="fas fa-layer-group"></i> ${metrics.sessions} sessions</span>
-                                <span><i class="fas fa-exclamation-triangle"></i> ${metrics.avg_distractions} distractions</span>
-                            </div>
-                            <div class="subject-card-progress">
-                                <div class="progress-fill" style="width:${pct}%; background:${color};"></div>
-                            </div>
-                            ${pct >= 90 ? '<div class="subject-card-badge"><i class="fas fa-crown"></i> Best</div>' : ''}
-                        </div>
-                    `;
-                });
-                
-                html += '</div>';
-                container.innerHTML = html;
-                
-                setTimeout(() => {
-                    document.querySelectorAll('.subject-card .progress-fill').forEach(bar => {
-                        bar.style.transition = 'width 1s ease';
-                    });
-                }, 300);
-                
-                const statBestSubject = document.getElementById('statBestSubject');
-                if (statBestSubject) {
-                    statBestSubject.textContent = data.data.best_subject ? data.data.best_subject[0] : '-';
-                }
-            } else {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-layer-group"></i>
-                        <p>No subjects yet. Add sessions!</p>
-                    </div>
-                `;
-            }
-        })
-        .catch(err => {
-            document.getElementById('subjectBreakdown').innerHTML = `
-                <div class="error-state">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <p>Error loading subjects</p>
-                </div>
-            `;
-        });
-}
-
-// ==========================================
-// SESSIONS
-// ==========================================
-function loadSessions() {
-    fetch('/api/sessions')
-        .then(res => res.json())
-        .then(data => {
-            const container = document.getElementById('sessionsList');
-            if (!container) return;
-            
-            if (data.success && data.data && data.data.length > 0) {
-                allSessions = data.data;
-                let html = '';
-                data.data.slice().reverse().forEach((session, index) => {
-                    const score = session.productivity_score || 0;
-                    const scoreClass = score >= 70 ? 'score-high' : score >= 50 ? 'score-medium' : 'score-low';
-                    const date = session.timestamp ? session.timestamp.substring(0, 16).replace('T', ' ') : 'Unknown';
-                    const actualIndex = data.data.length - 1 - index;
-                    
-                    html += `
-                        <div class="session-item" data-index="${actualIndex}">
-                            <div class="session-info">
-                                <div class="session-subject">${session.subject}</div>
-                                <div class="session-meta">
-                                    <i class="fas fa-clock"></i> ${session.duration}min
-                                    <i class="fas fa-calendar-alt" style="margin-left:12px;"></i> ${date}
-                                    ${session.distractions ? ` <i class="fas fa-exclamation-triangle" style="margin-left:12px;color:#F39C12;"></i> ${session.distractions} distractions` : ''}
-                                    ${session.mood ? ` <i class="fas fa-smile" style="margin-left:12px;"></i> ${session.mood}/5` : ''}
-                                </div>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:10px;">
-                                <span class="session-score ${scoreClass}">${score}%</span>
-                                <button class="btn btn-secondary btn-sm" onclick="deleteSession(${actualIndex})" 
-                                        style="color:#E74C3C;border-color:#E74C3C;padding:4px 12px;border-radius:8px;cursor:pointer;transition:all 0.3s ease;background:transparent;border:1px solid #E74C3C;"
-                                        onmouseover="this.style.background='#E74C3C';this.style.color='white'"
-                                        onmouseout="this.style.background='transparent';this.style.color='#E74C3C'">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                });
-                container.innerHTML = html;
-                updateSubjectFilter(data.data);
-            } else {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-book-open"></i>
-                        <p>No sessions found</p>
-                        <p style="font-size:13px;margin-top:4px;">Start tracking your study sessions</p>
-                    </div>
-                `;
-            }
-        })
-        .catch(err => {
-            document.getElementById('sessionsList').innerHTML = `
-                <div class="error-state">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <p>Error loading sessions</p>
-                </div>
-            `;
-        });
-}
-
-function updateSubjectFilter(sessions) {
-    const select = document.getElementById('filterSubject');
-    if (!select) return;
-    
-    const subjects = [...new Set(sessions.map(s => s.subject))];
-    const currentValue = select.value;
-    select.innerHTML = '<option value="">All Subjects</option>';
-    subjects.forEach(subject => {
-        const option = document.createElement('option');
-        option.value = subject;
-        option.textContent = subject;
-        select.appendChild(option);
-    });
-    select.value = currentValue;
-}
-
-function refreshSessions() {
-    loadSessions();
-    showToast('Sessions refreshed', 'info');
-}
-
-// ==========================================
-// DELETE SESSION - PREMIUM CUSTOM CONFIRMATION
-// ==========================================
-function deleteSession(id) {
-    showDeleteConfirmation(id);
-}
-
-function showDeleteConfirmation(id) {
-    const existing = document.getElementById('deleteConfirmModal');
-    if (existing) existing.remove();
-    
-    const modal = document.createElement('div');
-    modal.id = 'deleteConfirmModal';
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.6);
-        backdrop-filter: blur(12px);
-        z-index: 10000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        animation: fadeIn 0.3s ease;
-    `;
-    
-    const isDark = document.body.classList.contains('dark-mode');
-    
-    modal.innerHTML = `
-        <div style="
-            background: ${isDark ? '#2d2d44' : '#ffffff'};
-            border-radius: 20px;
-            padding: 32px 40px;
-            max-width: 440px;
-            width: 90%;
-            box-shadow: 0 24px 80px rgba(0,0,0,0.3);
-            border: 1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'};
-            animation: scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            text-align: center;
-        ">
-            <div style="
-                width: 64px;
-                height: 64px;
-                border-radius: 50%;
-                background: rgba(231,76,60,0.12);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin: 0 auto 16px;
-            ">
-                <i class="fas fa-exclamation-triangle" style="color: #E74C3C; font-size: 28px;"></i>
-            </div>
-            
-            <h3 style="
-                font-size: 20px;
-                font-weight: 700;
-                color: ${isDark ? '#E8E8F0' : '#1a1a2e'};
-                margin-bottom: 8px;
-                font-family: 'Inter', sans-serif;
-            ">Delete Session?</h3>
-            
-            <p style="
-                font-size: 14px;
-                color: ${isDark ? '#95A5A6' : '#95A5A6'};
-                margin-bottom: 24px;
-                font-family: 'Inter', sans-serif;
-                line-height: 1.6;
-            ">This action cannot be undone. Are you sure you want to delete this session?</p>
-            
-            <div style="display: flex; gap: 12px; justify-content: center;">
-                <button onclick="closeDeleteConfirmation()" style="
-                    padding: 10px 28px;
-                    border-radius: 12px;
-                    border: 1px solid ${isDark ? 'rgba(255,255,255,0.1)' : '#E8E8F0'};
-                    background: ${isDark ? 'rgba(255,255,255,0.05)' : '#f8f9fa'};
-                    color: ${isDark ? '#95A5A6' : '#4A4A6A'};
-                    font-size: 14px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    font-family: 'Inter', sans-serif;
-                " onmouseover="this.style.background='${isDark ? 'rgba(255,255,255,0.1)' : '#e8ecf1'}'" 
-                   onmouseout="this.style.background='${isDark ? 'rgba(255,255,255,0.05)' : '#f8f9fa'}'">
-                    Cancel
-                </button>
-                <button onclick="confirmDelete(${id})" style="
-                    padding: 10px 28px;
-                    border-radius: 12px;
-                    border: none;
-                    background: #E74C3C;
-                    color: white;
-                    font-size: 14px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    font-family: 'Inter', sans-serif;
-                    box-shadow: 0 4px 16px rgba(231,76,60,0.3);
-                " onmouseover="this.style.background='#C0392B'; this.style.transform='translateY(-2px)'"
-                   onmouseout="this.style.background='#E74C3C'; this.style.transform='translateY(0)'">
-                    <i class="fas fa-trash" style="margin-right: 8px;"></i> Delete
-                </button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    if (!document.getElementById('modalAnimationStyles')) {
-        const style = document.createElement('style');
-        style.id = 'modalAnimationStyles';
-        style.textContent = `
-            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-            @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
-        `;
-        document.head.appendChild(style);
+function updateDate() {
+    const now = new Date();
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dateEl = document.getElementById('currentDate');
+    if (dateEl) {
+        dateEl.innerHTML = `<i class="far fa-calendar-alt"></i> ${now.toLocaleDateString('en-US', options)}`;
     }
 }
-
-function closeDeleteConfirmation() {
-    const modal = document.getElementById('deleteConfirmModal');
-    if (modal) {
-        modal.style.animation = 'fadeOut 0.2s ease';
-        setTimeout(() => modal.remove(), 250);
-    }
-}
-
-function confirmDelete(id) {
-    closeDeleteConfirmation();
-    showToast('Deleting session...', 'info');
-    
-    fetch(`/api/sessions/${id}`, { method: 'DELETE' })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                loadSessions();
-                loadStats();
-                loadDashboard();
-                loadSubjectBreakdown();
-                showToast('Session deleted successfully!', 'success');
-            } else {
-                showToast('Error deleting session', 'error');
-            }
-        })
-        .catch(err => {
-            console.error('Error:', err);
-            showToast('Error deleting session', 'error');
-        });
-}
-
-// ==========================================
-// SESSION FILTERS
-// ==========================================
-function applyFilters() {
-    const date = document.getElementById('filterDate').value;
-    const subject = document.getElementById('filterSubject').value;
-    
-    fetch(`/api/sessions?date=${date}&subject=${subject}`)
-        .then(res => res.json())
-        .then(data => {
-            const container = document.getElementById('sessionsList');
-            if (!container) return;
-            
-            if (data.success && data.data && data.data.length > 0) {
-                let html = '';
-                data.data.slice().reverse().forEach((session, index) => {
-                    const score = session.productivity_score || 0;
-                    const scoreClass = score >= 70 ? 'score-high' : score >= 50 ? 'score-medium' : 'score-low';
-                    const dateStr = session.timestamp ? session.timestamp.substring(0, 16).replace('T', ' ') : 'Unknown';
-                    const actualIndex = data.data.length - 1 - index;
-                    
-                    html += `
-                        <div class="session-item">
-                            <div class="session-info">
-                                <div class="session-subject">${session.subject}</div>
-                                <div class="session-meta">
-                                    <i class="fas fa-clock"></i> ${session.duration}min
-                                    <i class="fas fa-calendar-alt" style="margin-left:12px;"></i> ${dateStr}
-                                    ${session.distractions ? ` <i class="fas fa-exclamation-triangle" style="margin-left:12px;color:#F39C12;"></i> ${session.distractions} distractions` : ''}
-                                    ${session.mood ? ` <i class="fas fa-smile" style="margin-left:12px;"></i> ${session.mood}/5` : ''}
-                                </div>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:10px;">
-                                <span class="session-score ${scoreClass}">${score}%</span>
-                                <button class="btn btn-secondary btn-sm" onclick="deleteSession(${actualIndex})" 
-                                        style="color:#E74C3C;border-color:#E74C3C;padding:4px 12px;border-radius:8px;cursor:pointer;transition:all 0.3s ease;background:transparent;border:1px solid #E74C3C;"
-                                        onmouseover="this.style.background='#E74C3C';this.style.color='white'"
-                                        onmouseout="this.style.background='transparent';this.style.color='#E74C3C'">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                });
-                container.innerHTML = html;
-            } else {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-search"></i>
-                        <p>No sessions found with current filters</p>
-                    </div>
-                `;
-            }
-        })
-        .catch(err => console.error('Error:', err));
-}
-
-function clearFilters() {
-    document.getElementById('filterDate').value = '';
-    document.getElementById('filterSubject').value = '';
-    document.getElementById('searchSessions').value = '';
-    loadSessions();
-    showToast('Filters cleared', 'info');
-}
-
-function searchSessions() {
-    const query = document.getElementById('searchSessions').value.toLowerCase();
-    const items = document.querySelectorAll('#sessionsList .session-item');
-    items.forEach(item => {
-        const text = item.textContent.toLowerCase();
-        item.style.display = text.includes(query) ? 'flex' : 'none';
-    });
-}
-
-// ==========================================
-// SUBJECTS (Page)
-// ==========================================
-function loadSubjects() {
-    fetch('/api/subjects')
-        .then(res => res.json())
-        .then(data => {
-            const container = document.getElementById('subjectAnalysis');
-            if (!container) return;
-            
-            if (data.success && data.data && data.data.subjects) {
-                let html = `
-                    <div class="subject-analysis-header">
-                        <div class="best-subject-card">
-                            <i class="fas fa-crown"></i>
-                            <div class="best-subject-label">Best Subject</div>
-                            <div class="best-subject-name">${data.data.best_subject ? data.data.best_subject[0] : '-'}</div>
-                            <div class="best-subject-score">${data.data.best_subject ? data.data.best_subject[1].avg_productivity + '%' : ''}</div>
-                        </div>
-                        <div class="worst-subject-card">
-                            <i class="fas fa-arrow-down"></i>
-                            <div class="worst-subject-label">Worst Subject</div>
-                            <div class="worst-subject-name">${data.data.worst_subject ? data.data.worst_subject[0] : '-'}</div>
-                            <div class="worst-subject-score">${data.data.worst_subject ? data.data.worst_subject[1].avg_productivity + '%' : ''}</div>
-                        </div>
-                    </div>
-                    <div class="subject-analysis-grid">
-                `;
-                
-                data.data.subjects.forEach(([subject, metrics]) => {
-                    const pct = metrics.avg_productivity;
-                    const color = pct >= 70 ? '#2ECC71' : pct >= 50 ? '#F39C12' : '#E74C3C';
-                    html += `
-                        <div class="subject-analysis-card">
-                            <div class="subject-analysis-icon" style="background:${color}20; color:${color};">
-                                <i class="fas fa-book"></i>
-                            </div>
-                            <div class="subject-analysis-name">${subject}</div>
-                            <div class="subject-analysis-score" style="color:${color};">${pct}%</div>
-                            <div class="subject-analysis-stats">
-                                <span><i class="fas fa-clock"></i> ${metrics.total_time} min</span>
-                                <span><i class="fas fa-layer-group"></i> ${metrics.sessions} sessions</span>
-                                <span><i class="fas fa-exclamation-triangle"></i> ${metrics.avg_distractions} distractions</span>
-                            </div>
-                            <div class="subject-analysis-progress">
-                                <div class="progress-fill" style="width:${pct}%; background:${color};"></div>
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                html += '</div>';
-                container.innerHTML = html;
-                
-                setTimeout(() => {
-                    document.querySelectorAll('.subject-analysis-card .progress-fill').forEach(bar => {
-                        bar.style.transition = 'width 1s ease';
-                    });
-                }, 300);
-            } else {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-layer-group"></i>
-                        <p>No subjects yet</p>
-                        <p style="font-size:13px;margin-top:4px;">Add sessions to see subject analysis</p>
-                    </div>
-                `;
-            }
-        })
-        .catch(err => {
-            document.getElementById('subjectAnalysis').innerHTML = `
-                <div class="error-state">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <p>Error loading subject analysis</p>
-                </div>
-            `;
-        });
-}
-
-// ==========================================
-// AI INSIGHTS - Premium Dark Mode
-// ==========================================
-function loadInsights() {
-    fetch('/api/insights')
-        .then(res => res.json())
-        .then(data => {
-            const container = document.getElementById('aiInsights');
-            if (!container) return;
-            
-            if (data.success && data.data && !data.data.error) {
-                const insights = data.data;
-                let html = '<div class="insights-container">';
-                
-                if (insights.patterns?.best_learning_time) {
-                    const hour = insights.patterns.best_learning_time.hour;
-                    const productivity = insights.patterns.best_learning_time.avg_productivity;
-                    html += `
-                        <div class="insight-card glow-card">
-                            <div class="insight-icon"><i class="fas fa-clock"></i></div>
-                            <div class="insight-title">Best Time to Study</div>
-                            <div class="insight-value">${String(hour).padStart(2, '0')}:00</div>
-                            <div class="insight-sub">${productivity}% average productivity</div>
-                        </div>
-                    `;
-                }
-                
-                if (insights.analysis?.overall_stats) {
-                    const stats = insights.analysis.overall_stats;
-                    const consistency = insights.analysis.consistency || 0;
-                    html += `
-                        <div class="insight-stats-grid">
-                            <div class="stat-card-mini">
-                                <div class="stat-icon-mini"><i class="fas fa-chart-line"></i></div>
-                                <div class="stat-label-mini">Mean</div>
-                                <div class="stat-value-mini">${stats.mean || 0}%</div>
-                            </div>
-                            <div class="stat-card-mini">
-                                <div class="stat-icon-mini"><i class="fas fa-chart-bar"></i></div>
-                                <div class="stat-label-mini">Median</div>
-                                <div class="stat-value-mini">${stats.median || 0}%</div>
-                            </div>
-                            <div class="stat-card-mini">
-                                <div class="stat-icon-mini"><i class="fas fa-bullseye"></i></div>
-                                <div class="stat-label-mini">Consistency</div>
-                                <div class="stat-value-mini">${consistency}%</div>
-                            </div>
-                        </div>
-                        <div class="insight-footer">Based on ${insights.total_sessions || 0} sessions</div>
-                    `;
-                }
-                
-                if (insights.recommendations && insights.recommendations.length > 0) {
-                    html += `
-                        <div class="recommendations-card">
-                            <div class="recommendations-title"><i class="fas fa-lightbulb"></i> Recommendations</div>
-                            <ul class="recommendations-list">
-                    `;
-                    insights.recommendations.slice(0, 5).forEach(rec => {
-                        html += `<li><i class="fas fa-arrow-right"></i> ${rec}</li>`;
-                    });
-                    html += `
-                            </ul>
-                        </div>
-                    `;
-                }
-                
-                if (insights.ai_confidence) {
-                    html += `
-                        <div class="confidence-bar">
-                            <span class="confidence-label">AI Confidence</span>
-                            <div class="confidence-track">
-                                <div class="confidence-fill" style="width:${insights.ai_confidence}%;"></div>
-                            </div>
-                            <span class="confidence-value">${insights.ai_confidence}%</span>
-                        </div>
-                    `;
-                }
-                
-                html += '</div>';
-                container.innerHTML = html;
-            } else {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-robot"></i>
-                        <p>${data.data?.message || 'Add more sessions for AI insights'}</p>
-                        <p style="font-size:13px;margin-top:4px;">Need at least 5 sessions for analysis</p>
-                    </div>
-                `;
-            }
-        })
-        .catch(err => {
-            console.error('Error loading insights:', err);
-            const container = document.getElementById('aiInsights');
-            if (container) {
-                container.innerHTML = `
-                    <div class="error-state">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <p>Error loading AI insights</p>
-                    </div>
-                `;
-            }
-        });
-}
-
-// ==========================================
-// MODAL
-// ==========================================
-function showAddModal() {
-    const modal = document.getElementById('addModal');
-    if (modal) {
-        modal.style.display = 'block';
-        document.getElementById('sessionForm').reset();
-        setTimeout(() => {
-            const firstInput = document.getElementById('subject');
-            if (firstInput) firstInput.focus();
-        }, 100);
-    }
-}
-
-function closeModal() {
-    const modal = document.getElementById('addModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
-
-function addSession(e) {
-    e.preventDefault();
-    
-    const subject = document.getElementById('subject');
-    const duration = document.getElementById('duration');
-    const distractions = document.getElementById('distractions');
-    const mood = document.getElementById('mood');
-    const notes = document.getElementById('notes');
-    
-    if (!subject || !duration) return;
-    
-    const data = {
-        subject: subject.value.trim(),
-        duration: parseInt(duration.value),
-        distractions: parseInt(distractions ? distractions.value : 0) || 0,
-        mood: parseInt(mood ? mood.value : null) || null,
-        notes: notes ? notes.value.trim() || null : null
-    };
-    
-    if (!data.subject || !data.duration) {
-        showToast('Please fill in subject and duration', 'warning');
-        return;
-    }
-    
-    const btn = e.target.querySelector('button[type="submit"]');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-    }
-    
-    fetch('/api/sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            closeModal();
-            loadStats();
-            loadDashboard();
-            loadSubjectBreakdown();
-            loadSessions();
-            loadInsights();
-            loadSubjects();
-            showToast('Session added successfully', 'success');
-        } else {
-            showToast('Error: ' + (data.error || 'Unknown error'), 'error');
-        }
-    })
-    .catch(err => {
-        console.error('Error:', err);
-        showToast('Error adding session', 'error');
-    })
-    .finally(() => {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-save"></i> Save Session';
-        }
-    });
-}
-
-window.onclick = function(event) {
-    const modal = document.getElementById('addModal');
-    if (modal && event.target === modal) {
-        closeModal();
-    }
-}
-
-// ==========================================
-// AUTO REFRESH
-// ==========================================
-setInterval(() => {
-    const activePage = document.querySelector('.page.active');
-    if (activePage) {
-        const id = activePage.id;
-        if (id === 'page-dashboard') {
-            loadStats();
-            loadDashboard();
-            loadSubjectBreakdown();
-        }
-    }
-}, 30000);
-
-console.log('✅ Smart Study System loaded successfully!');
-console.log('📊 Track your study sessions and get AI insights!');
-console.log('⌨️ Keyboard Shortcuts:');
-console.log('  Ctrl+N - New Session');
-console.log('  Ctrl+1-5 - Navigate pages');
-console.log('  Escape - Close modal');
